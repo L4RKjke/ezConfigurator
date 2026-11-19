@@ -7,8 +7,8 @@ import {
     signature, validPwm, type Group, type Rule,
 } from "@/js/vtxRules/model";
 import {
-    installRulesSession, loadRules, RECONNECT_PENDING, recoveryRequired,
-    rulesBusy, withRulesLock, writeRules,
+    applyRules, installRulesSession, loadRules, RECONNECT_PENDING, recoveryRequired,
+    rulesBusy, saveRules, withRulesLock,
 } from "@/js/vtxRules/session";
 
 interface Option { value: number; label: string }
@@ -26,7 +26,7 @@ const props = defineProps<{
 installRulesSession();
 const connection = useConnectionStore();
 
-const SAVE_DELAY_MS = 500;
+const APPLY_DELAY_MS = 500;
 const order: Group[] = ["channel", "power"];
 const names = { power: "Мощность", channel: "Каналы" };
 
@@ -36,7 +36,7 @@ const message = ref("Чтение правил с FC…");
 const ready = ref(false);
 const waiting = ref(false);
 const errorText = ref("");
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let applyTimer: ReturnType<typeof setTimeout> | undefined;
 
 const settings = reactive({
     power: { auto: false, common: false, aux: 0 },
@@ -70,6 +70,13 @@ function buildTable(): Rule[] {
 }
 
 const dirty = computed(() => ready.value && signature(buildTable()) !== signature(base.value));
+
+// Применение доступно автоматически, если нет блокировок и основная форма не изменена.
+const canApply = computed(() =>
+    ready.value && !locked.value && !props.mainDirty && dirty.value,
+);
+// Сохранение на FC доступно по кнопке при тех же условиях, но без требования dirty.
+const canSave = computed(() => ready.value && !locked.value && !props.mainDirty);
 
 function pwm(g: Group) {
     if (!settings[g].auto) return;
@@ -178,37 +185,65 @@ async function read() {
     }
 }
 
-// Запись: вызывается автоматически после паузы в изменениях.
-async function save() {
-    if (!editable.value || !dirty.value || props.mainDirty) return;
+// Применение: отправка изменённых слотов, сверка, без save.
+// Бросает ошибку, если сверка не прошла. base обновляется только проверенной таблицей.
+async function applyEdits() {
+    validate();
+    message.value = "Применение правил на FC…";
+    const verified = await withRulesLock(props.drainStatus, epoch =>
+        applyRules(base.value, buildTable(), epoch),
+    );
+    base.value = verified;
+    message.value = "Правила применены и проверены на FC";
+}
+
+// Автоприменение после паузы в редактировании.
+async function autoApply() {
+    if (!canApply.value) return;
     errorText.value = "";
     try {
-        validate();
-        const before = base.value.map(r => ({ ...r }));
-        const after = buildTable();
-        message.value = "Запись правил на FC…";
-        await withRulesLock(props.drainStatus, async epoch => {
-            if (props.mainDirty || props.mainSaving) {
-                throw new Error("Основная форма VTX была изменена");
+        await applyEdits();
+    } catch (e) {
+        errorText.value = errMsg(e);
+    }
+}
+
+function scheduleApply() {
+    clearTimeout(applyTimer);
+    applyTimer = setTimeout(() => void autoApply(), APPLY_DELAY_MS);
+}
+
+// Сохранение на FC: единственная операция с перезапуском.
+async function saveToFc() {
+    if (!canSave.value) return;
+    clearTimeout(applyTimer);
+    errorText.value = "";
+    try {
+        if (dirty.value) {
+            await applyEdits();
+            if (dirty.value) {
+                throw new Error("Есть неприменённые правки. Нажмите «Сохранить на FC» ещё раз.");
             }
-            await writeRules(before, after, epoch);
-        });
+        }
+
+        message.value = "Сохранение на FC…";
+        const confirmed = await withRulesLock(props.drainStatus, epoch =>
+            saveRules(base.value, epoch),
+        );
+
         waiting.value = true;
-        message.value = "Ожидание FC для проверки записи…";
-        // Переподключение могло произойти во время записи, когда блокировка была занята.
+        message.value = confirmed
+            ? RECONNECT_PENDING
+            : "Команда save не подтверждена. Результат будет проверен после переподключения.";
+        // Переподключение могло произойти во время save, когда блокировка была занята.
         if (connection.connectionValid) await read();
     } catch (e) {
         errorText.value = errMsg(e);
     }
 }
 
-function scheduleSave() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => void save(), SAVE_DELAY_MS);
-}
-
-watch(edits, scheduleSave, { deep: true });
-watch(() => props.mainDirty, isDirty => { if (!isDirty) scheduleSave(); });
+watch(edits, scheduleApply, { deep: true });
+watch(() => props.mainDirty, isDirty => { if (!isDirty) scheduleApply(); });
 watch(() => connection.connectionValid, valid => {
     if (valid && (waiting.value || !ready.value)) void read();
 });
@@ -219,7 +254,7 @@ const status = computed(() => {
     if (dirty.value && props.mainDirty) {
         return "Сначала сохраните или отмените изменения основной формы VTX.";
     }
-    if (dirty.value) return "Изменения будут записаны на FC…";
+    if (dirty.value) return "Изменения будут применены на FC…";
     return message.value;
 });
 
@@ -308,6 +343,14 @@ onMounted(() => { void read(); });
                 Слоты {{ reserved.map(r => r.slot).join(", ") }} содержат другие типы
                 записей. Редактор их не изменяет.
             </p>
+
+            <div class="flex flex-wrap items-center gap-3 border-t pt-4">
+                <UButton label="Сохранить на FC" :disabled="!canSave" @click="saveToFc" />
+                <span class="text-sm">
+                    Правки применяются на FC автоматически. Сохранение на FC
+                    перезапускает контроллер.
+                </span>
+            </div>
 
             <p role="status" aria-live="polite">{{ status }}</p>
         </div>

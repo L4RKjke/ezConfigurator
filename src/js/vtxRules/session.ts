@@ -16,8 +16,6 @@ interface Pending {
 let pending: Pending | null = null;
 let generation = 0;
 
-// остальные импорты без изменений
-
 let sessionScope: EffectScope | null = null;
 
 export function installRulesSession() {
@@ -33,7 +31,6 @@ export function installRulesSession() {
         }, { flush: "sync" });
     });
 }
-
 
 function uid(): string {
     const id = useFlightControllerStore().config.uid;
@@ -69,14 +66,14 @@ export async function withRulesLock<T>(
     operation: (epoch: number) => Promise<T>,
 ): Promise<T> {
     if (rulesBusy.value) throw new Error("Уже выполняется операция с правилами");
-    
+
     const epoch = generation;
     rulesBusy.value = true;
     try {
         const { isMspCliSupported } = await import("@/composables/useMspCliSession");
-            if (!isMspCliSupported()) {
-                throw new Error("Этот FC не поддерживает CLI-команды через MSP");
-            }
+        if (!isMspCliSupported()) {
+            throw new Error("Этот FC не поддерживает CLI-команды через MSP");
+        }
         await drainStatus();
         assertLink(epoch);
         return await operation(epoch);
@@ -89,22 +86,35 @@ export const RECONNECT_PENDING = "Сохранение отправлено. О�
 
 export async function loadRules(epoch: number) {
     const rows = await table(epoch);
-    let message = "Правила загружены с FC";
 
     if (pending && pending.uid === uid()) {
         if (!pending.disconnected) {
             throw new Error(RECONNECT_PENDING);
         }
-        // остальной код без изменений
+        const expected = pending.expected;
+        pending = null;
+        if (signature(rows) !== expected) {
+            throw new Error(
+                "После переподключения правила на FC отличаются от сохранённых. " +
+                "Проверьте таблицу перед дальнейшими действиями.",
+            );
+        }
+        return { rows, message: "Правила сохранены на FC и проверены после переподключения" };
     }
-    return { rows, message };
+    return { rows, message: "Правила загружены с FC" };
 }
 
-
-export async function writeRules(base: Rule[], next: Rule[], epoch: number) {
+/**
+ * Применяет изменения в RAM без save.
+ * Отправляет только изменённые слоты, затем перечитывает таблицу и сверяет её.
+ * Возвращает проверенную таблицу с FC.
+ */
+export async function applyRules(base: Rule[], next: Rule[], epoch: number): Promise<Rule[]> {
     if (recoveryRequired.value) throw new Error("Требуется восстановление соединения");
     const board = uid();
-    if (pending?.uid === board) throw new Error("Ещё не проверена предыдущая запись");
+    if (pending?.uid === board) {
+        throw new Error("Ожидается проверка предыдущего сохранения после переподключения FC");
+    }
 
     const current = await table(epoch);
     if (signature(current) !== signature(base)) {
@@ -115,7 +125,6 @@ export async function writeRules(base: Rule[], next: Rule[], epoch: number) {
     }
 
     const changed = next.filter((r, i) => command(r) !== command(base[i]));
-    if (!changed.length) return;
     const touched: number[] = [];
 
     try {
@@ -124,14 +133,16 @@ export async function writeRules(base: Rule[], next: Rule[], epoch: number) {
             touched.push(r.slot);
             await cli(command(r), epoch);
         }
-        if (signature(await table(epoch)) !== signature(next)) {
+        const verified = await table(epoch);
+        if (signature(verified) !== signature(next)) {
             throw new Error("FC не принял ожидаемую таблицу");
         }
+        return verified;
     } catch (error) {
-        // Команды vtx меняют RAM по одной. Если не откатить изменения,
-        // их способно позднее сохранить обычное сохранение EEPROM.
+        // Команды vtx меняют RAM по одной. Откатываем уже отправленные слоты,
+        // чтобы не оставить частичное состояние, которое позже может попасть в EEPROM.
         try {
-            for (const slot of touched.reverse()) {
+            for (const slot of [...touched].reverse()) {
                 await cli(command(base[slot]), epoch);
             }
             if (signature(await table(epoch)) !== signature(base)) {
@@ -140,17 +151,34 @@ export async function writeRules(base: Rule[], next: Rule[], epoch: number) {
         } catch {
             recoveryRequired.value = true;
             throw new Error(
-                "Запись прервана; состояние RAM не подтверждено. " +
-                "Не сохраняйте настройки. Обесточьте FC без save и заново откройте Configurator.",
+                "Применение прервано; состояние RAM не подтверждено. " +
+                "Не сохраняйте настройки на FC. Обесточьте FC без save и заново откройте Configurator.",
             );
         }
         throw error;
     }
+}
+
+/**
+ * Единственная операция с save (перезапуск FC).
+ * Вызывается только после успешного применения. Перед save повторно сверяет таблицу.
+ * Возвращает true, если FC подтвердил save.
+ */
+export async function saveRules(expected: Rule[], epoch: number): Promise<boolean> {
+    if (recoveryRequired.value) throw new Error("Требуется восстановление соединения");
+    const board = uid();
+    if (pending?.uid === board) {
+        throw new Error("Ожидается проверка предыдущего сохранения после переподключения FC");
+    }
+
+    const current = await table(epoch);
+    if (signature(current) !== signature(expected)) {
+        throw new Error("Правила на FC не совпадают с проверенными. Save не отправлен.");
+    }
+
     const { saveAndReconnect } = await import("@/composables/useMspCliSession");
     assertLink(epoch);
-    pending = { uid: board, expected: signature(next), disconnected: false };
+    pending = { uid: board, expected: signature(expected), disconnected: false };
     const result = await saveAndReconnect();
-    if (!result.ok) {
-        throw new Error("Команда save не подтверждена. Результат будет проверен после переподключения.");
-    }
+    return result.ok;
 }
