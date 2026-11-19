@@ -27,7 +27,6 @@
                     v-show="vtxSupported"
                     :title="$t('vtxSelectedMode')"
                     type="neutral"
-                    collapsible
                     class="w-full sm:w-fit"
                 >
                     <div class="flex flex-col gap-2">
@@ -104,7 +103,6 @@
                     v-show="vtxSupported"
                     :title="$t('vtxActualState')"
                     type="neutral"
-                    collapsible
                     class="w-full sm:w-80"
                 >
                     <div class="flex flex-col text-xs">
@@ -182,7 +180,7 @@
 
                 <!-- VTX Table -->
                 <div class="max-w-full overflow-x-auto">
-                    <UiBox :title="$t('vtxTable')" type="neutral" collapsible class="w-fit">
+                    <UiBox :title="$t('vtxTable')" type="neutral" class="w-fit">
                         <div class="flex flex-col gap-4">
                             <!-- Bands and channels count -->
                             <div class="flex flex-wrap items-end gap-4">
