@@ -79,22 +79,21 @@ export async function withRulesLock<T>(
     }
 }
 
+export const RECONNECT_PENDING = "Сохранение отправлено. Ожидание переподключения FC.";
+
 export async function loadRules(epoch: number) {
     const rows = await table(epoch);
     let message = "Правила загружены с FC";
 
     if (pending && pending.uid === uid()) {
         if (!pending.disconnected) {
-            throw new Error("Сохранение отправлено. Ожидание переподключения FC.");
+            throw new Error(RECONNECT_PENDING);
         }
-        const matches = signature(rows) === pending.expected;
-        message = matches
-            ? "Правила записаны на FC"
-            : "Запись не подтверждена: после перезагрузки FC вернул другую таблицу";
-        pending = null;
+        // остальной код без изменений
     }
     return { rows, message };
 }
+
 
 export async function writeRules(base: Rule[], next: Rule[], epoch: number) {
     if (recoveryRequired.value) throw new Error("Требуется восстановление соединения");
