@@ -19,7 +19,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, reactive } from "vue";
 import { useConnectionStore } from "@/stores/connection";
 import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 import djv from "djv";
