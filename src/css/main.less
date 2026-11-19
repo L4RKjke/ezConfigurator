@@ -1463,9 +1463,10 @@ body.compact-header-layout {
             background-color: var(--surface-400);
         }
     }
+}   // ← вот эта скобка всё чинит
 
 .rule-duplicate {
-    position: relative; /* у кнопки и так есть relative — не помешает */
+    position: relative;
     outline: none;
 }
 
@@ -1493,5 +1494,6 @@ body.compact-header-layout {
 @keyframes dup-shimmer {
     to { background-position: -300% 0; }
 }
+
 
 }
