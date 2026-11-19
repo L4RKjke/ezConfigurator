@@ -8,12 +8,6 @@
             </div>
             <div id="tab-content-container" :class="{ 'has-mobile-topbar': isLandingTab }">
                 <div class="tab_container" :class="{ reveal: isMobileSidebarOpen }">
-                    <betaflight-logo
-                        :configurator-version="appInfo.displayVersion"
-                        :firmware-version="fcStore.config.flightControllerVersion"
-                        :firmware-id="fcStore.config.flightControllerIdentifier"
-                        :hardware-id="fcStore.config.hardwareName"
-                    ></betaflight-logo>
                     <Teleport to=".floating-connect" :disabled="!isCompactBreakpoint">
                         <ConnectButton />
                     </Teleport>
