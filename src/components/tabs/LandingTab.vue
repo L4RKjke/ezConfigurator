@@ -52,4 +52,8 @@ import BaseTab from "./BaseTab.vue";
 .fork-intro li + li {
     margin-top: 0.75em;
 }
+.tab-landing {
+    min-height: 100%;
+    background: var(--surface-100);
+}
 </style>
