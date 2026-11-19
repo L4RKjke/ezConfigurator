@@ -54,6 +54,29 @@ const locked = computed(() =>
 const editable = computed(() => ready.value && !locked.value);
 const groupRows = (g: Group) => edits.value.filter(r => r.group === g);
 
+// Повторяющиеся значения в пределах одной группы подсвечиваем у всех
+// участников повтора, чтобы было видно «пару», а не только первый дубль.
+const duplicatePowers = computed(() => {
+    const count = new Map<number, number>();
+    groupRows("power").forEach(r => count.set(r.power, (count.get(r.power) ?? 0) + 1));
+    return new Set([...count].filter(([, n]) => n > 1).map(([power]) => power));
+});
+
+const duplicateChannels = computed(() => {
+    const count = new Map<string, number>();
+    groupRows("channel").forEach(r => {
+        const key = `${r.band}:${r.channel}`;
+        count.set(key, (count.get(key) ?? 0) + 1);
+    });
+    return new Set([...count].filter(([, n]) => n > 1).map(([key]) => key));
+});
+
+const isDupPower = (r: EditRow) => r.group === "power" && duplicatePowers.value.has(r.power);
+const isDupChannel = (r: EditRow) => r.group === "channel" && duplicateChannels.value.has(`${r.band}:${r.channel}`);
+
+const hasDuplicates = computed(() => duplicatePowers.value.size > 0 || duplicateChannels.value.size > 0);
+
+
 const reserved = computed(() => base.value.filter(r => kind(r) === "reserved"));
 const limit = computed(() => Math.min(MAX_RULES, base.value.length - reserved.value.length));
 const free = computed(() => Math.max(0, limit.value - edits.value.length));
@@ -299,19 +322,21 @@ onMounted(() => { void read(); });
                     <span v-else>AUX {{ r.aux + 1 }}</span>
 
                     <label v-if="r.group === 'power'">Уровень
-                        <USelect v-model="r.power" :items="powers" :disabled="!editable" />
+                        <USelect v-model="r.power" :items="powers" :disabled="!editable"
+                            :class="{ 'rule-duplicate': isDupPower(r) }"/>
                     </label>
                     <template v-else>
                         <label>Band
                             <USelect :model-value="r.band" :items="bands" :disabled="!editable"
+                                :class="{ 'rule-duplicate': isDupChannel(r) }"
                                 @update:model-value="changeBand(r, Number($event))" />
                         </label>
                         <label>Channel
                             <USelect v-model="r.channel" :items="channelsFor(r.band)"
+                                :class="{ 'rule-duplicate': isDupChannel(r) }"
                                 :disabled="!editable" />
                         </label>
                     </template>
-
                     <span v-if="settings[r.group].auto">
                         ШИМ: {{ r.start }}–{{ r.end }} мкс (авто)
                     </span>
@@ -356,3 +381,10 @@ onMounted(() => { void read(); });
         </div>
     </UiBox>
 </template>
+<style scoped>
+.rule-duplicate {
+    border-color: rgb(239 68 68);
+    box-shadow: 0 0 0 1px rgb(239 68 68);
+    border-radius: 0.25rem;
+}
+</style>
