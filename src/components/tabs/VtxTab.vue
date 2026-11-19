@@ -86,10 +86,6 @@
                             />
                         </SettingRow>
                         
-                        <UCheckbox v-model="allowVtxChangeWhileArmed"
-                            label="Разрешить переключение VTX правил во время ARM" />
-
-
                         <!-- Low power disarm -->
                         <SettingRow :label="$t('vtxLowPowerDisarm')" :help="$t('vtxLowPowerDisarmHelp')">
                             <USelect
@@ -611,8 +607,6 @@ export default defineComponent({
                 await loadVtxPort();
                 await loadOsdPort();
             });
-        
-        const allowVtxChangeWhileArmed = ref(false);
 
         // --- VTX Table count setters (with change tracking) ---
 
