@@ -19,7 +19,10 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { reactive, ref, computed, toRaw } from "vue";
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
+import { useConnectionStore } from "@/stores/connection";
+import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 import djv from "djv";
 import { i18n } from "../js/localization";
 import { getTracking } from "../js/Analytics";
@@ -414,13 +417,12 @@ export function useVtx() {
         updating.value = false;
     }
 
-    function updateDeviceStatus() {
-        MSP.send_message(MSPCodes.MSP2_GET_VTX_DEVICE_STATUS, false, false, () => {
-            vtxTypeString.value = getVtxTypeString();
-            const isReady = fcStore.vtxDeviceStatus !== null && fcStore.vtxDeviceStatus.deviceIsReady;
-            deviceReady.value = !!isReady;
-        });
+    async function updateDeviceStatus(): Promise<void> {
+        await sendMspPromise(MSPCodes.MSP2_GET_VTX_DEVICE_STATUS);
+        vtxTypeString.value = getVtxTypeString();
+        deviceReady.value = Boolean(fcStore.vtxDeviceStatus?.deviceIsReady);
     }
+
 
     // --- Save ---
     // Error/cancellation handling and the isSaving state are owned by the caller's runSave()

@@ -5,7 +5,9 @@
             <div class="tab_title" v-html="$t('tabVtx')"></div>
             <WikiButton docUrl="vtx" />
 
-            <div class="mt-4 flex flex-wrap items-start gap-4">
+            <div class="mt-4 flex flex-wrap items-start gap-4"
+                :inert="rulesBusy || recoveryRequired">
+
 
                 <!-- Not supported -->
                 <UiBox highlight v-show="!vtxSupported" class="mt-3 w-full sm:w-96">
@@ -379,7 +381,15 @@
                     </UiBox>
                 </div>
             </div>
-
+            <VtxRulesEditor
+                v-if="rulesTabReady && vtxSupported"
+                :main-dirty="mainVtxDirty"
+                :main-saving="isSaving || importBusy"
+                :powers="powerOptions"
+                :bands="bandOptions"
+                :channels-for="ruleChannelsFor"
+                :drain-status="drainStatus"
+            />
             <!-- Save pending warning -->
             <UiBox highlight v-show="savePending">
                 <div v-html="$t('vtxMessageVerifyTable')"></div>
@@ -387,9 +397,10 @@
         </div>
 
         <!-- Toolbar -->
-        <div class="content_toolbar toolbar_fixed_bottom">
+        <div class="content_toolbar toolbar_fixed_bottom"
+            :inert="rulesBusy || recoveryRequired">
             <UFieldGroup orientation="horizontal">
-                <UButton :label="$t('loadFromFile')" :disabled="isSaving" @click="loadJsonFile" variant="soft" />
+                <UButton :label="$t('loadFromFile')" :disabled="isSaving" @click="importVtxFile" variant="soft" />
                 <UDropdownMenu v-slot="{ open }" :items="loadMenuItems" :content="{ align: 'end', side: 'top' }">
                     <UButton
                         :icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
@@ -412,7 +423,7 @@
                     />
                 </UDropdownMenu>
             </UFieldGroup>
-            <UButton :label="$t('save')" :disabled="saveButtonDisabled" :loading="isSaving" @click="handleSave" />
+            <UButton :label="$t('save')" :disabled="saveButtonDisabled || !rulesTabReady || rulesBusy || importBusy || recoveryRequired" :loading="isSaving" @click="handleSave" />
         </div>
     </BaseTab>
 </template>
@@ -441,6 +452,7 @@ export default defineComponent({
         UiBox,
         HelpIcon,
         SettingRow,
+        VtxRulesEditor,
     },
     setup() {
         const { t } = useTranslation();
@@ -561,13 +573,13 @@ export default defineComponent({
                     label: t("loadFromFile"),
                     icon: "i-lucide-hard-drive-download",
                     disabled: isSaving.value,
-                    onSelect: loadJsonFile,
+                    onSelect: importVtxFile,
                 },
                 {
                     label: t("loadFromClipboard"),
                     icon: "i-lucide-clipboard-paste",
                     disabled: isSaving.value,
-                    onSelect: loadClipboardJson,
+                    onSelect: importVtxClipboard
                 },
             ],
         ]);
@@ -588,28 +600,95 @@ export default defineComponent({
                 },
             ],
         ]);
+        
+        const connection = useConnectionStore();
+        const rulesTabReady = ref(false);
+        const importBusy = ref(false);
+        let alive = true;
+        let statusInFlight: Promise<void> | null = null;
+
+        onBeforeUnmount(() => { alive = false; });
+
+        const mainVtxDirty = computed(
+            () => !vtxConfigSaveDisabled.value || vtxPortChanged.value,
+        );
+
+        async function drainStatus(): Promise<void> {
+            if (statusInFlight) await statusInFlight;
+        }
+
+        function pollVtxStatus() {
+            if (
+                !alive || !rulesTabReady.value || !connection.connectionValid ||
+                connection.cliActive || rulesBusy.value || isSaving.value || statusInFlight
+            ) return;
+
+            const request = updateDeviceStatus();
+            statusInFlight = request;
+            void request.catch(error => {
+                if (alive && connection.connectionValid) console.warn("VTX status:", error);
+            }).finally(() => {
+                if (statusInFlight === request) statusInFlight = null;
+            });
+        }
+
+        function ruleChannelsFor(band: number) {
+            if (!vtxConfig.vtx_table_available) {
+                return Array.from({ length: MAX_BAND_CHANNELS_VALUES }, (_, i) => ({
+                    value: i + 1, label: String(i + 1),
+                }));
+            }
+            const freqs = bandList[band - 1]?.vtxtable_band_frequencies ?? [];
+            return freqs.flatMap((freq, i) =>
+                freq > 0 ? [{ value: i + 1, label: `${i + 1} (${freq} МГц)` }] : [],
+            );
+        }
+
+        async function importVtx(action: () => Promise<unknown>) {
+            if (rulesBusy.value || isSaving.value || importBusy.value || recoveryRequired.value) return;
+            importBusy.value = true;
+            try {
+                await action();
+            } finally {
+                importBusy.value = false;
+            }
+        }
+
+        const importVtxFile = () => importVtx(loadJsonFile);
+        const importVtxClipboard = () => importVtx(loadClipboardJson);
+
 
         onMounted(async () => {
             await loadVtxConfig();
+            if (!alive) return;
+
             await loadVtxPort();
+            if (!alive) return;
+
             await loadOsdPort();
-            addInterval("vtx_device_status_pull", updateDeviceStatus, 1000);
+            if (!alive) return;
+
+            rulesTabReady.value = true;
+            addInterval("vtx_device_status_pull", pollVtxStatus, 1000);
             i18n.localizePage();
         });
 
-        const handleSave = () =>
-            runSave(async () => {
-                // Warn before a pick that would take a port from another feature; a cancel here
-                // leaves the save untouched, before anything has been written to the FC.
-                if (!(await confirmPortConflicts())) {
-                    return;
-                }
+        const handleSave = () => {
+            if (
+                !rulesTabReady.value || !connection.connectionValid || connection.cliActive ||
+                rulesBusy.value || isSaving.value || importBusy.value || recoveryRequired.value
+            ) return;
 
+            return runSave(async () => {
+                await drainStatus();
+                if (!(await confirmPortConflicts())) return;
                 await saveVtx(writeVtxPort);
                 await loadVtxConfig();
                 await loadVtxPort();
                 await loadOsdPort();
             });
+        };
+
 
         // --- VTX Table count setters (with change tracking) ---
 
@@ -806,6 +885,15 @@ export default defineComponent({
             setPowerLevelValue,
             getPowerLevelLabel,
             setPowerLevelLabel,
+
+            rulesTabReady,
+            rulesBusy,
+            recoveryRequired,
+            importBusy,
+            mainVtxDirty,
+            ruleChannelsFor,
+            drainStatus,
+            importVtxFile,
         };
     },
 });

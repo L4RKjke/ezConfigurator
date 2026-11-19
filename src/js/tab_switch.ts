@@ -28,6 +28,7 @@ import { mountVueTab, vueTabState } from "./vue_tab_mounter";
 import { sidebarItems } from "../components/sidebar/sidebar_items";
 import { useConnectionStore } from "../stores/connection";
 import { useNavigationStore } from "../stores/navigation";
+import { rulesBusy } from "@/js/vtxRules/session";
 
 export interface SwitchTabOptions {
     /**
@@ -47,6 +48,11 @@ function defaultLabel(tabKey: string): string {
 
 function canSwitchTab(requiresConnection: boolean): boolean {
     const connectionStore = useConnectionStore();
+    if (rulesBusy.value && connectionStore.connectionValid) {
+        gui_log(i18n.getMessage("tabSwitchWaitForOperation"));
+        return false;
+    }
+
     if (requiresConnection && !connectionStore.connectionValid) {
         gui_log(i18n.getMessage("tabSwitchConnectionRequired"));
         return false;
