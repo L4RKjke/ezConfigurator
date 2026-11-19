@@ -51,9 +51,9 @@ export interface SidebarVisibilityContext {
 export const sidebarItems: SidebarItem[] = [
     { key: "landing", mode: "disconnected", i18n: "tabLanding", icon: "i-lucide-home" },
     { key: "firmware_flasher", mode: "disconnected", i18n: "tabFirmwareFlasher", icon: "i-lucide-zap" },
-    { key: "help", mode: "disconnected", i18n: "tabHelp", icon: "i-lucide-help-circle" },
-    { key: "preflight", mode: "disconnected", i18n: "tabPreflight", icon: "i-lucide-clipboard-check" },
-    { key: "flight_plan", mode: "disconnected", i18n: "tabFlightPlan", icon: "i-lucide-route", expert: true },
+    //{ key: "help", mode: "disconnected", i18n: "tabHelp", icon: "i-lucide-help-circle" },
+    //{ key: "preflight", mode: "disconnected", i18n: "tabPreflight", icon: "i-lucide-clipboard-check" },
+    //{ key: "flight_plan", mode: "disconnected", i18n: "tabFlightPlan", icon: "i-lucide-route", expert: true },
 
     { key: "setup", mode: "connected", i18n: "tabSetup", icon: "i-lucide-sliders-horizontal" },
     { key: "sensors", mode: "connected", i18n: "tabSensorConfig", icon: "i-lucide-cpu" },
