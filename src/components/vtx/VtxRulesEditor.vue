@@ -323,17 +323,17 @@ onMounted(() => { void read(); });
 
                     <label v-if="r.group === 'power'">Уровень
                         <USelect v-model="r.power" :items="powers" :disabled="!editable"
-                            :class="{ 'rule-duplicate': isDupPower(r) }"/>
+                            :class="{ 'outline-4 outline-red-500/70 -outline-offset-2': isDupPower(r) }" />
                     </label>
                     <template v-else>
                         <label>Band
                             <USelect :model-value="r.band" :items="bands" :disabled="!editable"
-                                :class="{ 'rule-duplicate': isDupChannel(r) }"
+                                :class="{ 'outline-4 outline-red-500/70 -outline-offset-2': isDupChannel(r) }"
                                 @update:model-value="changeBand(r, Number($event))" />
                         </label>
                         <label>Channel
                             <USelect v-model="r.channel" :items="channelsFor(r.band)"
-                                :class="{ 'rule-duplicate': isDupChannel(r) }"
+                                :class="{ 'outline-4 outline-red-500/70 -outline-offset-2': isDupChannel(r) }"
                                 :disabled="!editable" />
                         </label>
                     </template>
@@ -386,10 +386,3 @@ onMounted(() => { void read(); });
         </div>
     </UiBox>
 </template>
-<style scoped>
-.rule-duplicate {
-    outline: 2px solid rgb(239 68 68);
-    outline-offset: -2px; /* обводка внутрь, не сдвигает раскладку */
-    border-radius: 0.25rem;
-}
-</style>
