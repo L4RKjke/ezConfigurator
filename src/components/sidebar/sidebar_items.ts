@@ -95,8 +95,8 @@ export const sidebarItems: SidebarItem[] = [
 
     { key: "log", mode: "shared", i18n: "tabLog", icon: "i-lucide-file-text", expert: true, hideInSidebar: true },
 
-    { key: "backups", mode: "loggedin", i18n: "tabBackups", icon: "i-lucide-database", hideInSidebar: true },
-    { key: "user_profile", mode: "loggedin", i18n: "tabUserProfile", icon: "i-lucide-user", hideInSidebar: true },
+    //{ key: "backups", mode: "loggedin", i18n: "tabBackups", icon: "i-lucide-database", hideInSidebar: true },
+    // { key: "user_profile", mode: "loggedin", i18n: "tabUserProfile", icon: "i-lucide-user", hideInSidebar: true },
 ];
 
 export function isItemVisible(item: SidebarItem, ctx: SidebarVisibilityContext): boolean {
