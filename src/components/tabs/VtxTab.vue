@@ -94,6 +94,10 @@
                                 class="w-36"
                             />
                         </SettingRow>
+                        <!-- Allow VTX change while armed -->
+                        <SettingRow :label="$t('vtxAllowChangeWhileArmed')" :help="$t('vtxAllowChangeWhileArmedHelp')">
+                            <USwitch v-model="allowVtxChangeWhileArmed" size="xs" />
+                        </SettingRow>
                     </div>
                 </UiBox>
 
@@ -418,7 +422,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, computed } from "vue";
+import { defineComponent, onMounted, computed, ref } from "vue";
 import BaseTab from "./BaseTab.vue";
 import WikiButton from "../elements/WikiButton.vue";
 import UiBox from "../elements/UiBox.vue";
@@ -524,6 +528,9 @@ export default defineComponent({
 
         // A port-only change still has to enable Save; the VTX config's own dirty state cannot see it.
         const saveButtonDisabled = computed(() => vtxConfigSaveDisabled.value && !vtxPortChanged.value);
+
+        // Пока чисто визуальное состояние: логика привяжется к прошивке позже
+        const allowVtxChangeWhileArmed = ref(false);
 
         const lowPowerDisarmOptions = computed(() => [
             { value: 0, label: t("vtxLowPowerDisarmOption_0") },
@@ -742,6 +749,7 @@ export default defineComponent({
             // State
             vtxPortAvailable,
             vtxPortWritable,
+            allowVtxChangeWhileArmed,
             vtxPortOptions,
             vtxPortIdentifier,
             vtxProtocol,
