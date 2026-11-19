@@ -429,7 +429,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, computed, ref } from "vue";
+import { defineComponent, onMounted, computed, ref, onBeforeUnmount } from "vue";
 import BaseTab from "./BaseTab.vue";
 import WikiButton from "../elements/WikiButton.vue";
 import UiBox from "../elements/UiBox.vue";
@@ -444,6 +444,8 @@ import { usePortConflicts } from "@/composables/ports/usePortConflicts";
 import { PORT_NONE } from "@/composables/ports/portNames";
 import { useTranslation } from "i18next-vue";
 import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
+import { useConnectionStore } from "@/stores/connection";
+import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 
 export default defineComponent({
     name: "VtxTab",
