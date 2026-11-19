@@ -328,13 +328,15 @@ onMounted(() => { void read(); });
                     <template v-else>
                         <label>Band
                             <USelect :model-value="r.band" :items="bands" :disabled="!editable"
-                                :class="{ 'rule-duplicate': isDupChannel(r) }" />
+                                :class="{ 'rule-duplicate': isDupChannel(r) }"
+                                @update:model-value="changeBand(r, Number($event))" />
                         </label>
                         <label>Channel
                             <USelect v-model="r.channel" :items="channelsFor(r.band)"
                                 :class="{ 'rule-duplicate': isDupChannel(r) }" />
                         </label>
                     </template>
+
                     <span v-if="settings[r.group].auto">
                         ШИМ: {{ r.start }}–{{ r.end }} мкс (авто)
                     </span>
