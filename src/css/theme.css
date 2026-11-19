@@ -13,7 +13,6 @@
 @theme static {
     /* Extending Tailwind colors with Betaflight primary colors */
     /* Used for Nuxt UI and referenced further in theme.css */
-@theme static {
     /* Green primary palette */
     --color-primary-50: #ecfdf5;
     --color-primary-100: #d1fae5;
@@ -27,10 +26,7 @@
     --color-primary-900: #064e3b;
     --color-primary-950: #022c22;
 
-    /* Остальные цвета оставьте без изменений */
     --color-neutral-850: oklch(23.5% 0 0);
-}
-
 
     /* Graph series, the same in every theme. Tailwind turns each into utilities (`bg-axis-roll`);
        canvas and d3 code reads them with `getCssVar()`. */
