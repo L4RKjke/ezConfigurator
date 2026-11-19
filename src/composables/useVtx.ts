@@ -20,7 +20,6 @@
  */
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from "vue";
-import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
 import { useConnectionStore } from "@/stores/connection";
 import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 import djv from "djv";

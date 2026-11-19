@@ -443,6 +443,7 @@ import { useFeaturePort } from "@/composables/ports/useFeaturePort";
 import { usePortConflicts } from "@/composables/ports/usePortConflicts";
 import { PORT_NONE } from "@/composables/ports/portNames";
 import { useTranslation } from "i18next-vue";
+import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
 
 export default defineComponent({
     name: "VtxTab",
