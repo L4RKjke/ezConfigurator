@@ -388,8 +388,8 @@ onMounted(() => { void read(); });
 </template>
 <style scoped>
 .rule-duplicate {
-    border-color: rgb(239 68 68);
-    box-shadow: 0 0 0 1px rgb(239 68 68);
+    outline: 2px solid rgb(239 68 68);
+    outline-offset: -2px; /* обводка внутрь, не сдвигает раскладку */
     border-radius: 0.25rem;
 }
 </style>
