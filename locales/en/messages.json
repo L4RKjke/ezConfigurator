@@ -9418,5 +9418,12 @@
     },
     "speedCurvesCurveMaxHelp": {
         "message": "The hyperbolic curves max value limit, *0.01"
+    },
+        "vtxAllowChangeWhileArmed": {
+        "message": "Allow VTX changes while armed",
+        "description": "Toggle to permit changing VTX settings while the craft is armed"
+    },
+    "vtxAllowChangeWhileArmedHelp": {
+        "message": "Permits switching VTX rules while armed. Logic is not connected yet."
     }
 }

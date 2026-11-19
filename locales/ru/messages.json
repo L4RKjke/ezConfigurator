@@ -8801,5 +8801,11 @@
     },
     "pidTuningWingTpaAdvSpeedMotorKv": {
         "message": "Мотор KV"
+    },
+        "vtxAllowChangeWhileArmed": {
+        "message": "Разрешить переключение VTX правил во время ARM"
+    },
+    "vtxAllowChangeWhileArmedHelp": {
+        "message": "Разрешает менять настройки видеопередатчика в заармленном состоянии. Логика пока не подключена."
     }
 }
