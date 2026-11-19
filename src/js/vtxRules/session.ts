@@ -1,4 +1,4 @@
-import { ref, watch } from "vue";
+import { effectScope, watch, type EffectScope } from "vue";
 import { useConnectionStore } from "@/stores/connection";
 import { useFlightControllerStore } from "@/stores/fc";
 
@@ -14,20 +14,26 @@ interface Pending {
     disconnected: boolean;
 }
 let pending: Pending | null = null;
-let installed = false;
 let generation = 0;
 
-export function installRulesSession() {
-    if (installed) return;
-    installed = true;
-    const connection = useConnectionStore();
+// остальные импорты без изменений
 
-    watch(() => connection.connectionValid, valid => {
-        if (valid) return;
-        generation++;
-        if (pending) pending.disconnected = true;
-    }, { flush: "sync" });
+let sessionScope: EffectScope | null = null;
+
+export function installRulesSession() {
+    if (sessionScope) return;
+    // detached scope: не останавливается при размонтировании вкладки
+    sessionScope = effectScope(true);
+    sessionScope.run(() => {
+        const connection = useConnectionStore();
+        watch(() => connection.connectionValid, valid => {
+            if (valid) return;
+            generation++;
+            if (pending) pending.disconnected = true;
+        }, { flush: "sync" });
+    });
 }
+
 
 function uid(): string {
     const id = useFlightControllerStore().config.uid;
