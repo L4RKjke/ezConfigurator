@@ -1463,4 +1463,35 @@ body.compact-header-layout {
             background-color: var(--surface-400);
         }
     }
+
+.rule-duplicate {
+    position: relative; /* у кнопки и так есть relative — не помешает */
+    outline: none;
+}
+
+.rule-duplicate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(110deg,
+        #ef4444 0%,
+        #b91c1c 25%,
+        #f87171 50%,
+        #b91c1c 75%,
+        #ef4444 100%);
+    background-size: 300% 100%;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+                  linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: dup-shimmer 2s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes dup-shimmer {
+    to { background-position: -300% 0; }
+}
+
 }
