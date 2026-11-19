@@ -51,7 +51,7 @@ export default class BuildApi {
     private readonly _cacheExpirationPeriod = 3600 * 1000;
     private readonly _loginApi: LoginApi | null;
 
-    constructor(loginApi: LoginApi | null = new LoginApi()) {
+    constructor(loginApi: LoginApi | null = null) {
         this._loginApi = loginApi;
     }
 

@@ -25,7 +25,7 @@ import { configHasBuildOption, type BuildOptionsConfig } from "../../composables
  * When an entry is listed: `disconnected` before a connection, `connected` and
  * `cli` with one, `shared` always, `loggedin` with a user session.
  */
-export type SidebarMode = "disconnected" | "connected" | "cli" | "shared" | "loggedin";
+export type SidebarMode = "disconnected" | "connected" | "cli" | "shared";
 
 export interface SidebarItem {
     key: string;
@@ -93,10 +93,7 @@ export const sidebarItems: SidebarItem[] = [
 
     { key: "cli", mode: "cli", i18n: "tabCLI", icon: "i-lucide-terminal" },
 
-    { key: "log", mode: "shared", i18n: "tabLog", icon: "i-lucide-file-text", expert: true, hideInSidebar: true },
-
-    { key: "backups", mode: "loggedin", i18n: "tabBackups", icon: "i-lucide-database", hideInSidebar: true },
-    { key: "user_profile", mode: "loggedin", i18n: "tabUserProfile", icon: "i-lucide-user", hideInSidebar: true },
+    { key: "log", mode: "shared", i18n: "tabLog", icon: "i-lucide-file-text", expert: true, hideInSidebar: true }
 ];
 
 export function isItemVisible(item: SidebarItem, ctx: SidebarVisibilityContext): boolean {

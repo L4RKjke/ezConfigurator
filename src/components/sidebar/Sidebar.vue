@@ -39,7 +39,6 @@
                 />
             </UDropdownMenu>
         </UTooltip>
-        <UserSession :is-compact="isCompact" />
     </div>
     <SettingsSearch v-model="settingsSearchOpen" :expert-mode="expertModeOn" @select="onSettingSelected" />
     <OptionsDialog v-model="optionsOpen" />
@@ -48,7 +47,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useTranslation } from "i18next-vue";
-import UserSession from "@/components/user-session/UserSession.vue";
 import type { DropdownMenuItem } from "@nuxt/ui";
 import { useVisibleTabs } from "./useVisibleTabs";
 import { useNavigationStore } from "@/stores/navigation";

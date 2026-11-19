@@ -22,7 +22,6 @@
 import { computed, inject, type ComputedRef } from "vue";
 import { sidebarItems, isItemVisible } from "./sidebar_items";
 import { useConnectionStore } from "@/stores/connection";
-import { useAuthStore } from "@/stores/auth";
 import { useFlightControllerStore } from "@/stores/fc";
 import type { BetaflightModel } from "../init";
 import { useNavigationStore } from "@/stores/navigation";
@@ -41,7 +40,6 @@ type SidebarItem = (typeof sidebarItems)[number];
 export function useVisibleTabs(): ComputedRef<SidebarItem[]> {
     const connectionStore = useConnectionStore();
     const navigationStore = useNavigationStore();
-    const authStore = useAuthStore();
     const fcStore = useFlightControllerStore();
     const betaflightModel = inject<Partial<BetaflightModel> | null>("betaflightModel", null);
 
@@ -54,8 +52,6 @@ export function useVisibleTabs(): ComputedRef<SidebarItem[]> {
                 return !!connectionStore.connectionValid;
             case "shared":
                 return true;
-            case "loggedin":
-                return authStore.isLoggedIn;
             default:
                 return false;
         }
@@ -71,11 +67,12 @@ export function useVisibleTabs(): ComputedRef<SidebarItem[]> {
     });
 
     const isAllowed = (item: SidebarItem) => {
-        if (item.mode === "loggedin" || item.mode === "shared") {
+        if (item.mode === "shared") {
             return true;
         }
         return navigationStore.allowedTabs.includes(item.tab ?? item.key);
     };
+
 
     return computed(() =>
         sidebarItems

@@ -28,8 +28,6 @@ export const DEFAULT_ALLOWED_TABS_WHEN_DISCONNECTED: readonly string[] = [
     "firmware_flasher",
     "preflight",
     "help",
-    "user_profile",
-    "backups",
     "flight_plan",
     "autotune",
     "blackbox_viewer",

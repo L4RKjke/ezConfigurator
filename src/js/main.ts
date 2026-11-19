@@ -33,7 +33,6 @@ import { switchTab } from "./tab_switch";
 import * as THREE from "three";
 import NotificationManager from "./utils/notifications";
 import { Capacitor } from "@capacitor/core";
-import loginManager from "./LoginManager";
 import { enableDevelopmentOptions } from "./utils/developmentOptions";
 import { isPreviewOrDevBuild } from "./utils/buildEnvironment";
 import { loadDeviceFilters } from "./protocols/devices";
@@ -206,11 +205,6 @@ async function openDeleteAccountFromLink() {
     }
 
     requestDeleteAccountFocus();
-    switchTab("user_profile", { mode: "loggedin" });
-
-    if (!(await loginManager.isUserLoggedIn())) {
-        loginManager.showLoginDialog();
-    }
 }
 
 //Process to execute to real start the app
@@ -218,8 +212,6 @@ async function startProcess() {
     // translate to user-selected language
     i18n.localizePage();
 
-    // Initialize login manager
-    await loginManager.initialize();
 
     gui_log(i18n.getMessage("infoVersionOs", { operatingSystem: useAppInfoStore().operatingSystem }));
     gui_log(i18n.getMessage("infoVersionConfigurator", { configuratorVersion: useAppInfoStore().displayVersion }));
