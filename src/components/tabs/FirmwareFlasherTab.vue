@@ -3,7 +3,6 @@
         <div class="content_wrapper">
             <div class="tab_title">{{ $t("tabFirmwareFlasher") }}</div>
             <WikiButton docUrl="firmware_flasher" />
-            <SponsorTile ref="sponsorTile" sponsor-type="flash" />
 
             <!-- Sub-tab navigation -->
             <SubtabNav :items="subtabItems" v-model="activeFlasherStep" />
