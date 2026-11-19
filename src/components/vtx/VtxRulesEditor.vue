@@ -364,6 +364,11 @@ onMounted(() => { void read(); });
                 Правил редактора: {{ edits.length }} из {{ limit }}.
                 Слотов на FC: {{ base.length }}.
             </p>
+            <p v-if="hasDuplicates" class="text-sm text-red-500">
+                Есть правила с одинаковыми {{ duplicatePowers.size > 0 ? "уровнями мощности" :
+                duplicateChannels.size > 0 ? "каналами" : "" }}{{ duplicatePowers.size > 0 && duplicateChannels.size > 0 ? " и каналами" : "" }}.
+            </p>
+
             <p v-if="reserved.length">
                 Слоты {{ reserved.map(r => r.slot).join(", ") }} содержат другие типы
                 записей. Редактор их не изменяет.
