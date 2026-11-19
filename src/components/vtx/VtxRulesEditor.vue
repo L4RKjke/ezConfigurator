@@ -329,7 +329,6 @@ onMounted(() => { void read(); });
                         <label>Band
                             <USelect :model-value="r.band" :items="bands" :disabled="!editable"
                                 :class="{ 'rule-duplicate': isDupChannel(r) }" />
-                                @update:model-value="changeBand(r, Number($event))" />
                         </label>
                         <label>Channel
                             <USelect v-model="r.channel" :items="channelsFor(r.band)"
