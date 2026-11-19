@@ -1,4 +1,4 @@
-import { effectScope, watch, type EffectScope } from "vue";
+import { effectScope, watch, type EffectScope, ref } from "vue";
 import { useConnectionStore } from "@/stores/connection";
 import { useFlightControllerStore } from "@/stores/fc";
 
