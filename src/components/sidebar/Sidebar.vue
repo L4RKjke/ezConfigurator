@@ -20,7 +20,7 @@
                 square
                 :aria-label="t('sidebarToggleExpertMode')"
                 :aria-pressed="expertModeOn"
-                @click="toggleExpertMode()"
+                @click="toggleExpertMode"
             />
         </UTooltip>
         <UTooltip :text="isDark ? t('sidebarToggleLightMode') : t('sidebarToggleDarkMode')" :delay-duration="300">
@@ -41,7 +41,7 @@
                 :ui="{ content: 'z-3001' }"
             >
                 <UButton
-                    icon="i-lucide-settings-2"
+                    icon="i-lucide-settings"
                     variant="ghost"
                     color="neutral"
                     square
