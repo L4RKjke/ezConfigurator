@@ -53,6 +53,16 @@
 }
 .tab-landing {
     min-height: 100%;
-    background: var(--surface-100);
+    background: transparent
 }
+.fork-intro h1::after {
+    content: "";
+    display: block;
+    width: 3rem;
+    height: 2px;
+    margin-top: 0.55rem;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary-500), var(--orb-live-mid));
+}
+
 </style>

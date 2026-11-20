@@ -2,6 +2,7 @@
     <div class="sidebar-connect">
         <UButton
             v-if="isConnected"
+            class="ez-link ez-link--disconnect"
             block
             color="error"
             variant="soft"
@@ -15,7 +16,7 @@
         </UButton>
         <UFieldGroup v-else size="sm" orientation="horizontal" class="sidebar-connect__group w-full !flex">
             <UButton
-                class="sidebar-connect__main"
+                class="sidebar-connect__main ez-link ez-link--connect"
                 block
                 color="success"
                 variant="soft"
@@ -34,6 +35,7 @@
                 :ui="{ content: 'max-h-96 z-[2100]' }"
             >
                 <UButton
+                    class="ez-link ez-link--picker"
                     color="success"
                     variant="soft"
                     :icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"

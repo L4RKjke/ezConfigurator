@@ -14,17 +14,18 @@
     /* Extending Tailwind colors with Betaflight primary colors */
     /* Used for Nuxt UI and referenced further in theme.css */
     /* Green primary palette */
-    --color-primary-50: #ecfdf5;
-    --color-primary-100: #d1fae5;
-    --color-primary-200: #a7f3d0;
-    --color-primary-300: #6ee7b7;
-    --color-primary-400: #34d399;
-    --color-primary-500: #10b981;
-    --color-primary-600: #059669;
-    --color-primary-700: #047857;
-    --color-primary-800: #065f46;
-    --color-primary-900: #064e3b;
-    --color-primary-950: #022c22;
+    --color-primary-50:  #eff6ff;
+    --color-primary-100: #dbeafe;
+    --color-primary-200: #bfdbfe;
+    --color-primary-300: #93c5fd;
+    --color-primary-400: #7ab5fb;
+    --color-primary-500: #68a7f5;
+    --color-primary-600: #367ac5;
+    --color-primary-700: #275f9f;
+    --color-primary-800: #214d7e;
+    --color-primary-900: #1c3d62;
+    --color-primary-950: #11263f;
+
 
     --color-neutral-850: oklch(23.5% 0 0);
 
@@ -281,24 +282,12 @@ html {
 }
 
 body[data-theme="amber"] {
-    --primary-50: #ecfdf5;
-    --primary-100: #d1fae5;
-    --primary-200: #a7f3d0;
-    --primary-300: #6ee7b7;
-    --primary-400: #34d399;
-    --primary-500: #10b981;
-    --primary-600: #059669;
-    --primary-700: #047857;
-    --primary-800: #065f46;
-    --primary-900: #064e3b;
-    --primary-950: #022c22;
-
     --ui-primary: var(--primary-500);
 
-    --primary-transparent-1: rgba(16, 185, 129, 0.1);
-    --primary-transparent-2: rgba(16, 185, 129, 0.2);
-    --primary-transparent-3: rgba(16, 185, 129, 0.3);
-    --primary-transparent-4: rgba(16, 185, 129, 0.4);
+    --primary-transparent-1: rgb(104 167 245 / 10%);
+    --primary-transparent-2: rgb(104 167 245 / 20%);
+    --primary-transparent-3: rgb(104 167 245 / 30%);
+    --primary-transparent-4: rgb(104 167 245 / 40%);
 
     /* Chart colors - amber theme */
     --chart-axis-color: var(--surface-600);
@@ -384,7 +373,7 @@ body[data-theme="contrast"] {
         color: var(--surface-100) !important;
     }
 }
-
+/* ezConfigurator: Мои стили */
 /* Мои стили для шара */
 :root {
     --orb-idle-light: #b9cbff;
@@ -395,3 +384,105 @@ body[data-theme="contrast"] {
     --orb-live-mid: #ffb52d;
     --orb-live-dark: #853b12;
 }
+/* декоративные цвета, отдельно от цветов телеметрии */
+:root {
+    --ez-wash-blue: rgb(80 140 230 / 8%);
+    --ez-wash-teal: rgb(35 160 150 / 5%);
+
+    --ez-status-start: #eaf0f7;
+    --ez-status-end: #e8f2f1;
+    --ez-status-text: #263b50;
+    --ez-status-muted: #485e70;
+    --ez-status-line: #c4d2df;
+
+    /* Шар из предыдущего шага: подключение теперь бирюзовое, не золотое */
+    --orb-live-light: #c4fff0;
+    --orb-live-mid: #45cbb8;
+    --orb-live-dark: #155466;
+}
+
+.dark,
+[data-theme="dark"] {
+    --ez-wash-blue: rgb(85 152 255 / 9%);
+    --ez-wash-teal: rgb(54 189 170 / 5%);
+
+    --ez-status-start: #182231;
+    --ez-status-end: #17292d;
+    --ez-status-text: #dfebf5;
+    --ez-status-muted: #a9bdce;
+    --ez-status-line: #344452;
+}
+
+/* Центр почти однотонный: таблицы и поля не теряются на фоне. */
+body:not([data-theme="contrast"]) #content {
+    background-color: var(--surface-100);
+    background-image:
+        radial-gradient(ellipse at 0% 0%, var(--ez-wash-blue), transparent 52%),
+        radial-gradient(ellipse at 100% 100%, var(--ez-wash-teal), transparent 48%);
+}
+
+body:not([data-theme="contrast"]) #status-bar.app-status-bar {
+    background: linear-gradient(105deg, var(--ez-status-start), var(--ez-status-end));
+    color: var(--ez-status-text);
+    border-top: 1px solid var(--ez-status-line);
+
+    /* Локальные токены для подписей Nuxt UI и вертикальных разделителей */
+    --ui-text-muted: var(--ez-status-muted);
+    --ui-border-accented: var(--ez-status-line);
+}
+
+body:not([data-theme="contrast"]) #status-bar .stat-group > .value {
+    color: var(--ez-status-text);
+    font-variant-numeric: tabular-nums;
+}
+
+body:not([data-theme="contrast"]) .sidebar-connect .ez-link {
+    --ez-btn-start: #175965;
+    --ez-btn-end: #20665e;
+
+    color: #fff;
+    background-color: var(--ez-btn-start);
+    background-image:
+        linear-gradient(
+            110deg,
+            transparent 35%,
+            rgb(255 255 255 / 14%) 50%,
+            transparent 65%
+        ),
+        linear-gradient(110deg, var(--ez-btn-start), var(--ez-btn-end));
+    background-size: 250% 100%, 100% 100%;
+    background-position: 100% 0, 0 0;
+    background-repeat: no-repeat;
+}
+
+body:not([data-theme="contrast"]) .sidebar-connect .ez-link--disconnect {
+    --ez-btn-start: #65415e;
+    --ez-btn-end: #79495c;
+}
+
+body:not([data-theme="contrast"]) .sidebar-connect .ez-link--picker {
+    background: #20665e;
+    border-inline-start: 1px solid rgb(255 255 255 / 18%);
+}
+
+.sidebar-connect .ez-link:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+}
+
+@keyframes ez-link-sheen {
+    from { background-position: 100% 0, 0 0; }
+    to   { background-position: 0% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    body:not([data-theme="contrast"]) .sidebar-connect
+    .ez-link:not(.ez-link--picker):not(:disabled):not([aria-disabled="true"])
+
+    body:not([data-theme="contrast"]) .sidebar-connect
+    .ez-link:not(.ez-link--picker):enabled:is(:hover, :focus-visible):not([aria-disabled="true"]) {
+        animation: ez-link-sheen 850ms ease-out 1;
+    }
+}
+
+
