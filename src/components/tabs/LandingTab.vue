@@ -2,6 +2,7 @@
     <BaseTab tab-name="landing">
         <section class="fork-intro" lang="ru">
             <h1>Возможности ezConfigurator</h1>
+            <ConnectionOrb />
             <ul>
                 <li>
                     <strong>Настройка правил VTX.</strong>
@@ -24,7 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import BaseTab from "./BaseTab.vue";
+    import BaseTab from "./BaseTab.vue";
+    import ConnectionOrb from "../ConnectionOrb.vue";
 </script>
 
 <style scoped>
