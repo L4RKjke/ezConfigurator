@@ -12,13 +12,15 @@
         :class="{ 'sidebar-footer--compact': isCompact }"
     >
         <UTooltip :text="t('sidebarToggleExpertMode')" :delay-duration="300">
-            <USwitch
-                :model-value="expertModeOn"
-                checked-icon="i-lucide-wrench"
-                unchecked-icon="i-lucide-wrench"
-                size="sm"
+            <UButton
+                icon="i-lucide-key"
+                :variant="expertModeOn ? 'soft' : 'ghost'"
+                :color="expertModeOn ? 'primary' : 'neutral'"
+                size="xs"
+                square
                 :aria-label="t('sidebarToggleExpertMode')"
-                @update:model-value="(value: boolean) => toggleExpertMode(value)"
+                :aria-pressed="expertModeOn"
+                @click="toggleExpertMode()"
             />
         </UTooltip>
         <UTooltip :text="isDark ? t('sidebarToggleLightMode') : t('sidebarToggleDarkMode')" :delay-duration="300">
@@ -39,7 +41,7 @@
                 :ui="{ content: 'z-3001' }"
             >
                 <UButton
-                    icon="i-lucide-settings"
+                    icon="i-lucide-settings-2"
                     variant="ghost"
                     color="neutral"
                     square
