@@ -38,10 +38,58 @@ const waiting = ref(false);
 const errorText = ref("");
 let applyTimer: ReturnType<typeof setTimeout> | undefined;
 
+// ---- Настройки тумблеров: кеш пользователя ----
+const PREFS_KEY = "vtxRules.toggles";
+type TogglePrefs = Record<Group, { auto: boolean; common: boolean }>;
+
+function loadPrefs(): TogglePrefs {
+    const prefs = {} as TogglePrefs;
+    let raw: Partial<Record<Group, { auto?: unknown; common?: unknown }>> = {};
+    try {
+        raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") ?? {};
+    } catch {
+        raw = {};
+    }
+    for (const g of GROUPS) {
+        prefs[g] = {
+            auto: typeof raw[g]?.auto === "boolean" ? raw[g]!.auto as boolean : true,
+            common: typeof raw[g]?.common === "boolean" ? raw[g]!.common as boolean : true,
+        };
+    }
+    return prefs;
+}
+
+function savePrefs() {
+    try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+        // localStorage недоступен (приватный режим и т.п.) — работаем без кеша
+    }
+}
+
+// Намерение пользователя. Меняется только действиями в интерфейсе,
+// а не автоматически при чтении правил с FC.
+const prefs = loadPrefs();
+
 const settings = reactive({
-    power: { auto: false, common: false, aux: 0 },
-    channel: { auto: false, common: false, aux: 0 },
+    power: { auto: prefs.power.auto, common: prefs.power.common, aux: 0 },
+    channel: { auto: prefs.channel.auto, common: prefs.channel.common, aux: 0 },
 });
+
+// Проверка, соответствуют ли текущие значения слотов авто-ШИМ и одному AUX.
+function matchesAutoPwm(g: Group) {
+    const items = groupRows(g);
+    return items.every((r, i) => {
+        const p = calculatePwmRange(items.length, i);
+        return r.start === p.start && r.end === p.end;
+    });
+}
+
+function hasSameAux(g: Group) {
+    const items = groupRows(g);
+    return items.every(r => r.aux === items[0]?.aux);
+}
+
 
 const auxOptions = Array.from({ length: 14 }, (_, value) => ({
     value, label: `AUX ${value + 1}`,
@@ -108,10 +156,14 @@ function pwm(g: Group) {
 }
 function setAuto(g: Group, on: boolean) {
     settings[g].auto = on;
+    prefs[g].auto = on;
+    savePrefs();
     pwm(g);
 }
 function setCommon(g: Group, on: boolean) {
     settings[g].common = on;
+    prefs[g].common = on;
+    savePrefs();
     if (on) applyAux(g, settings[g].aux);
 }
 function applyAux(g: Group, aux: number) {
@@ -189,9 +241,13 @@ async function read() {
             return group === "power" || group === "channel" ? [{ ...r, group }] : [];
         });
         for (const g of GROUPS) {
-            settings[g].auto = false;
-            settings[g].common = false;
-            settings[g].aux = groupRows(g)[0]?.aux ?? 0;
+            const rows = groupRows(g);
+            const hasRows = rows.length > 0;
+            // Тумблер включён, только если его предпочтение совпадает с реальными правилами.
+            // При пустой группе действует сохранённое предпочтение.
+            settings[g].auto = prefs[g].auto && (!hasRows || matchesAutoPwm(g));
+            settings[g].common = prefs[g].common && (!hasRows || hasSameAux(g));
+            settings[g].aux = rows[0]?.aux ?? 0;
         }
         ready.value = true;
         waiting.value = false;
