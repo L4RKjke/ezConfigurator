@@ -8,25 +8,34 @@
         class="sidebar-nav pb-2"
     />
     <div
-        class="flex flex-row gap-1 border-t border-default pt-2 mt-auto items-center flex-wrap"
+        class="sidebar-footer flex flex-row gap-1 border-t border-default pt-2 mt-auto items-center justify-start flex-wrap"
         :class="{ 'sidebar-footer--compact': isCompact }"
     >
-        <UTooltip :text="`${t('settingsSearchTitle')} (Ctrl/Cmd + K)`" :delay-duration="300">
+        <UTooltip :text="t('sidebarToggleExpertMode')" :delay-duration="300">
+            <USwitch
+                :model-value="expertModeOn"
+                checked-icon="i-lucide-wrench"
+                unchecked-icon="i-lucide-wrench"
+                size="sm"
+                :aria-label="t('sidebarToggleExpertMode')"
+                @update:model-value="(value: boolean) => toggleExpertMode(value)"
+            />
+        </UTooltip>
+        <UTooltip :text="isDark ? t('sidebarToggleLightMode') : t('sidebarToggleDarkMode')" :delay-duration="300">
             <UButton
-                icon="i-lucide-search"
+                :icon="isDark ? 'i-lucide-sun' : 'i-lucide-moon'"
                 variant="ghost"
                 color="neutral"
                 square
-                :aria-label="t('settingsSearchTitle')"
-                @click="settingsSearchOpen = true"
                 size="xs"
-                :class="{ 'mr-auto': !isCompact }"
+                :aria-label="isDark ? t('sidebarToggleLightMode') : t('sidebarToggleDarkMode')"
+                @click="toggleDarkMode"
             />
         </UTooltip>
         <UTooltip :text="$t('sidebarSettingsMenu')" :delay-duration="300">
             <UDropdownMenu
                 :items="settingsMenuItems"
-                :content="{ side: 'top', align: isCompact ? 'start' : 'end' }"
+                :content="{ side: 'top', align: 'start' }"
                 :ui="{ content: 'z-3001' }"
             >
                 <UButton
@@ -40,7 +49,6 @@
             </UDropdownMenu>
         </UTooltip>
     </div>
-    <SettingsSearch v-model="settingsSearchOpen" :expert-mode="expertModeOn" @select="onSettingSelected" />
     <OptionsDialog v-model="optionsOpen" />
 </template>
 
@@ -52,25 +60,15 @@ import { useVisibleTabs } from "./useVisibleTabs";
 import { useNavigationStore } from "@/stores/navigation";
 import { vueTabState } from "@/js/vue_tab_mounter.js";
 import { switchTab } from "@/js/tab_switch.js";
-import { TABS } from "@/js/tab_adapters";
 import DarkTheme, { setDarkTheme } from "@/js/DarkTheme";
 import { get as getConfig, set as setConfig } from "@/js/ConfigStorage";
 import { applyExpertMode } from "@/js/utils/applyExpertMode";
 import { isExpertModeEnabled } from "@/js/utils/isExpertModeEnabled";
 import { EventBus } from "@/components/eventBus";
 import OptionsDialog from "@/components/dialogs/OptionsDialog.vue";
-import SettingsSearch from "@/components/settings-search/SettingsSearch.vue";
-import type { SettingsSearchEntry } from "virtual:settings-search-index";
 
 const { t } = useTranslation();
-const settingsSearchOpen = ref(false);
 
-function onSettingsSearchShortcut(event: KeyboardEvent) {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.code === "KeyK") {
-        event.preventDefault();
-        settingsSearchOpen.value = true;
-    }
-}
 const sidebarExpanded = inject("sidebarExpanded", ref(true));
 const closeMobileSidebar = inject("closeMobileSidebar", () => {});
 const isCompact = computed(() => !sidebarExpanded.value);
@@ -118,26 +116,6 @@ const settingsMenuItems = computed<DropdownMenuItem[][]>(() => [
             onSelect: () => (navigationStore.logPanelOpen = !navigationStore.logPanelOpen),
         },
     ],
-    [
-        {
-            label: t("sidebarToggleDarkMode"),
-            icon: isDark.value ? "i-lucide-sun" : "i-lucide-moon",
-            onSelect: (event: Event) => {
-                event.preventDefault();
-                toggleDarkMode();
-            },
-        },
-        {
-            label: t("sidebarToggleExpertMode"),
-            icon: "i-lucide-wrench",
-            type: "checkbox",
-            checked: expertModeOn.value,
-            onSelect: (event: Event) => {
-                event.preventDefault();
-                toggleExpertMode();
-            },
-        },
-    ],
 ]);
 
 // Re-sync isDark when the options dialog closes (user may have changed dark theme there).
@@ -149,94 +127,6 @@ watch(optionsOpen, (open) => {
 
 // Dark mode toggle — seed from DarkTheme.configSetting (not reactive, update explicitly)
 const isDark = ref(DarkTheme.enabled);
-
-async function focusSetting(setting: SettingsSearchEntry) {
-    let subtabSelected = !setting.subtab;
-
-    for (let attempt = 0; attempt < 30; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        if (!subtabSelected) {
-            const tabComponent = TABS[setting.tab]?._vueComponent as
-                { selectSubtab?: (subtab: string) => void } | undefined;
-
-            if (setting.subtab && typeof tabComponent?.selectSubtab === "function") {
-                tabComponent.selectSubtab(setting.subtab);
-                subtabSelected = true;
-                continue;
-            }
-        }
-
-        const rows = [...document.querySelectorAll<HTMLElement>("[data-setting-search-id]")];
-        const target = rows.find((row) => row.dataset.settingSearchId === setting.searchId);
-
-        if (!target) {
-            continue;
-        }
-
-        let expandedUiBox = false;
-        for (
-            let uiBox = target.closest<HTMLElement>("[data-ui-box]");
-            uiBox;
-            uiBox = uiBox.parentElement?.closest<HTMLElement>("[data-ui-box]") ?? null
-        ) {
-            const toggle = uiBox.querySelector<HTMLElement>(':scope > [data-ui-box-toggle][aria-expanded="false"]');
-
-            if (toggle) {
-                toggle.click();
-                expandedUiBox = true;
-            }
-        }
-
-        if (expandedUiBox || target.offsetParent === null) {
-            continue;
-        }
-
-        target.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-        });
-
-        // Rows are not focusable by default; make only this one focusable for the jump.
-        if (!target.hasAttribute("tabindex")) {
-            target.setAttribute("tabindex", "-1");
-            target.addEventListener("blur", () => target.removeAttribute("tabindex"), { once: true });
-        }
-
-        target.focus({ preventScroll: true });
-
-        target.animate(
-            [
-                { boxShadow: "0 0 0 0 transparent" },
-                { boxShadow: "0 0 0 3px var(--ui-primary)" },
-                { boxShadow: "0 0 0 0 transparent" },
-            ],
-            {
-                duration: 600,
-                iterations: 3,
-                easing: "ease-out",
-            },
-        );
-
-        return;
-    }
-}
-
-function onSettingSelected(setting: SettingsSearchEntry) {
-    const item = activeItems.value.find((sidebarItem) => (sidebarItem.tab ?? sidebarItem.key) === setting.tab);
-
-    if (!item) {
-        return;
-    }
-
-    switchTab(setting.tab, {
-        mode: item.mode,
-        label: t(item.i18n),
-    });
-
-    closeMobileSidebar();
-    void focusSetting(setting);
-}
 
 function toggleDarkMode() {
     const colorTheme = getConfig("colorTheme", "yellow").colorTheme ?? "yellow";
@@ -256,20 +146,18 @@ const onExpertModeChange = (enabled: boolean) => {
     expertModeOn.value = enabled;
 };
 
-function toggleExpertMode() {
-    applyExpertMode(!expertModeOn.value);
+function toggleExpertMode(enabled: boolean) {
+    applyExpertMode(enabled);
 }
 
 onMounted(() => {
     expertModeOn.value = isExpertModeEnabled();
     isDark.value = DarkTheme.enabled;
     EventBus.$on("expert-mode-change", onExpertModeChange);
-    window.addEventListener("keydown", onSettingsSearchShortcut);
 });
 
 onUnmounted(() => {
     EventBus.$off("expert-mode-change", onExpertModeChange);
-    window.removeEventListener("keydown", onSettingsSearchShortcut);
 });
 </script>
 
