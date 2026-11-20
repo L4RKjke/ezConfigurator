@@ -407,7 +407,7 @@ onMounted(() => { void read(); });
                         </label>
                     </template>
 
-                    <UButton label="×" variant="ghost" :disabled="!editable"
+                    <UButton label="×" variant="outline" color="neutral" :disabled="!editable"
                         :aria-label="`Удалить правило из слота ${r.slot}`"
                         @click="remove(r)" />
                 </div>
