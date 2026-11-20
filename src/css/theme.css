@@ -384,3 +384,14 @@ body[data-theme="contrast"] {
         color: var(--surface-100) !important;
     }
 }
+
+/* Мои стили для шара */
+:root {
+    --orb-idle-light: #b9cbff;
+    --orb-idle-mid: #7659dc;
+    --orb-idle-dark: #182950;
+
+    --orb-live-light: #fff1ac;
+    --orb-live-mid: #ffb52d;
+    --orb-live-dark: #853b12;
+}
