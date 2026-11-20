@@ -148,9 +148,12 @@ const onExpertModeChange = (enabled: boolean) => {
     expertModeOn.value = enabled;
 };
 
-function toggleExpertMode(enabled: boolean) {
-    applyExpertMode(enabled);
+function toggleExpertMode() {
+    const next = !isExpertModeEnabled();
+    applyExpertMode(next);
+    expertModeOn.value = next;
 }
+
 
 onMounted(() => {
     expertModeOn.value = isExpertModeEnabled();
