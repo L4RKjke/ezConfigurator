@@ -132,7 +132,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, onMounted, provide, reactive, ref, inject, nextTick } from "vue";
+import { computed, defineComponent, onBeforeUnmount, onMounted, provide, reactive, ref, inject, nextTick, watch } from "vue";
 import BaseTab from "./BaseTab.vue";
 import WikiButton from "../elements/WikiButton.vue";
 import { i18n } from "../../js/localization";
@@ -505,22 +505,20 @@ export default defineComponent({
         };
 
         // при выборе версии/борда обновляем targetDetail и сохраняем
-        import("vue").then(({ watch }) => {
-            watch(
-                () => ezBetaState.selectedVersion,
-                (v) => {
-                    if (v) setConfig({ ezbeta_version: v });
-                    updateTargetDetailFromEzBeta();
-                },
-            );
-            watch(
-                () => ezBetaState.selectedBoard,
-                (v) => {
-                    if (v) setConfig({ ezbeta_board: v });
-                    updateTargetDetailFromEzBeta();
-                },
-            );
-        });
+        watch(
+            () => ezBetaState.selectedVersion,
+            (v) => {
+                if (v) setConfig({ ezbeta_version: v });
+                updateTargetDetailFromEzBeta();
+            },
+        );
+        watch(
+            () => ezBetaState.selectedBoard,
+            (v) => {
+                if (v) setConfig({ ezbeta_board: v });
+                updateTargetDetailFromEzBeta();
+            },
+        );
 
         // ==================== «Загрузить online» ====================
         const enforceOSDSelection = async () => {

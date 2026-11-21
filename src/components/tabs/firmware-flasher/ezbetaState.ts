@@ -1,3 +1,4 @@
+import type { InjectionKey } from "vue";
 import type { EzBetaRelease, EzBetaTargets } from "@/js/ezbeta/EzBetaApi";
 
 export interface EzBetaState {
@@ -32,10 +33,6 @@ export function createEzBetaState(): EzBetaState {
         // localStorage может быть недоступен — используем дефолт
     }
 
-    const selectedOther: Record<string, boolean> = {};
-    const selectedExpert: Record<string, boolean> = {};
-    // значения по умолчанию зададим в компоненте на основе каталога
-
     return {
         workerUrl: storedUrl,
         releases: [],
@@ -49,13 +46,10 @@ export function createEzBetaState(): EzBetaState {
         selectedOsd: "OSD_SD",
         selectedTelemetry: "",
         selectedMotor: "DSHOT",
-        selectedOther,
-        selectedExpert,
+        selectedOther: {},
+        selectedExpert: {},
         customFlags: [],
     };
 }
 
-export const EZBETA_STATE = Symbol("ezBetaState") as InjectionKey<EzBetaState>;
-
-// импорт InjectionKey нужен для типизации
-import type { InjectionKey } from "vue";
+export const EZBETA_STATE: InjectionKey<EzBetaState> = Symbol("ezBetaState");
