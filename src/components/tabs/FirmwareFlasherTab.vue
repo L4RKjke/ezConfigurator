@@ -213,9 +213,15 @@ export default defineComponent({
         };
 
         // Инициализируем чекбоксы значениями default из каталога.
+        // OSD_SD / OSD_HD / FRSKYOSD НЕ кладём в selectedOther — они управляются
+        // через selectedOsd (одиночный USelect). Иначе OSD_SD/OSD_HD попадёт в
+        // список дважды (из селекта + из чекбокса) → ошибка «Дубликат опции».
+        const osdNameSet = new Set<string>(EZBETA_OSD_NAMES as readonly string[]);
         for (const o of EZBETA_CATALOG) {
-            if (o.group === "other" && !o.expert) ezBetaState.selectedOther[o.name] = !!o.default;
-            if (o.group === "other" && o.expert) ezBetaState.selectedExpert[o.name] = !!o.default;
+            if (o.group !== "other") continue;
+            if (osdNameSet.has(o.name)) continue;
+            if (o.expert) ezBetaState.selectedExpert[o.name] = !!o.default;
+            else ezBetaState.selectedOther[o.name] = !!o.default;
         }
 
         const sponsorTile = ref<InstanceType<typeof SponsorTile> | null>(null);

@@ -2,11 +2,9 @@
     <div class="ezbeta-board-build flex flex-col gap-4">
         <!-- ============== Версия прошивки ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4">
-            <h3 class="text-sm font-semibold mb-2">
-                {{ tx("firmwareFlasherVersionSelectionHeader", "Выбор версии прошивки") }}
-            </h3>
+            <h3 class="text-sm font-semibold mb-2">Выбор версии прошивки</h3>
             <div class="flex flex-wrap items-center gap-3">
-                <USelect
+                <USelectMenu
                     v-model="state.selectedVersion"
                     :items="versionOptions"
                     :placeholder="state.loading ? 'Загрузка…' : '—'"
@@ -19,51 +17,40 @@
 
         <!-- ============== Плата ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4">
-            <h3 class="text-sm font-semibold mb-2">
-                {{ tx("firmwareFlasherBoardSelectionHeader", "Выбор платы") }}
-            </h3>
+            <h3 class="text-sm font-semibold mb-2">Выбор платы</h3>
             <div class="flex flex-wrap items-center gap-3">
                 <UInput v-model="state.boardFilter" placeholder="Поиск платы..." />
-                <!--
-                    :key форсирует пересоздание USelect при изменении фильтра.
-                    reka-ui/reka-based USelect не реагирует на изменение items пока
-                    dropdown не закрыт — а с :key он рендерится с новым списком.
-                -->
-                <USelect
+                <USelectMenu
                     :key="'board-' + state.boardFilter"
                     v-model="state.selectedBoard"
                     :items="boardOptions"
                     :placeholder="state.loading ? 'Загрузка…' : '—'"
                     :disabled="state.loading"
-                    class="min-w-[280px]"
+                    class="min-w-[320px]"
                 />
-                <UButton variant="outline" @click="onDetectBoard">
-                    {{ tx("firmwareFlasherButtonDetectBoard", "Определить") }}
-                </UButton>
+                <UButton variant="outline" @click="onDetectBoard">Определить</UButton>
                 <span class="text-xs text-muted">Плат: {{ state.allBoards.length }}</span>
             </div>
         </section>
 
         <!-- ============== Конфигурация сборки ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4 flex flex-col gap-4">
-            <h3 class="text-sm font-semibold">
-                {{ tx("firmwareFlasherBuildConfiguration", "Конфигурация сборки") }}
-            </h3>
+            <h3 class="text-sm font-semibold">Конфигурация сборки</h3>
 
             <label class="grid grid-cols-[200px_1fr] items-center gap-3 text-sm">
                 <span class="text-muted">Протокол приёмника</span>
-                <USelect v-model="state.selectedRadio" :items="radioOptions" />
+                <USelectMenu v-model="state.selectedRadio" :items="radioOptions" />
             </label>
 
             <label class="grid grid-cols-[200px_1fr] items-center gap-3 text-sm">
                 <span class="text-muted">Протокол OSD</span>
-                <USelect v-model="state.selectedOsd" :items="osdOptions" />
+                <USelectMenu v-model="state.selectedOsd" :items="osdOptions" />
             </label>
 
             <label class="grid grid-cols-[200px_1fr] items-center gap-3 text-sm">
                 <span class="text-muted">Протокол телеметрии</span>
                 <div class="flex items-center gap-3">
-                    <USelect
+                    <USelectMenu
                         v-model="state.selectedTelemetry"
                         :items="telemetryOptions"
                         :disabled="!telemetrySupported"
@@ -77,7 +64,7 @@
 
             <label class="grid grid-cols-[200px_1fr] items-center gap-3 text-sm">
                 <span class="text-muted">Протокол двигателей</span>
-                <USelect v-model="state.selectedMotor" :items="motorOptions" />
+                <USelectMenu v-model="state.selectedMotor" :items="motorOptions" />
             </label>
 
             <div>
@@ -116,15 +103,26 @@
                     <UButton size="xs" variant="ghost" icon="i-lucide-x" @click="removeCustomFlag(idx)" />
                 </div>
             </div>
+
+            <!-- Превью того, что уйдёт в POST /build -->
+            <div>
+                <div class="text-sm font-semibold mb-2">Итоговые опции (уйдут в /build)</div>
+                <pre
+                    class="rounded-md border border-default bg-default p-3 text-xs whitespace-pre-wrap break-all max-h-48 overflow-auto"
+                >{{ optionsPreview.error ? "" : optionsPreview.text }}</pre>
+                <div v-if="optionsPreview.error" class="mt-1 text-xs text-red-500">
+                    {{ optionsPreview.error }}
+                </div>
+            </div>
         </section>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { i18n } from "@/js/localization";
 import {
     EZBETA_OSD_NAMES,
+    collectEzBetaOptions,
     ezBetaGroupOptions,
     ezBetaHintText,
     findEzBetaOption,
@@ -141,15 +139,6 @@ const props = defineProps<Props>();
 const { state } = props;
 const onDetectBoard = props.onDetectBoard;
 
-/**
- * i18n с fallback: если ключа нет в locale-файлах — возвращаем строку по умолчанию
- * (а не сам ключ). Позволяет не править src/locales/*.json ради одной вкладки.
- */
-const tx = (key: string, fallback: string): string => {
-    const v = i18n.getMessage(key);
-    return !v || v === key ? fallback : v;
-};
-
 const versionOptions = computed(() =>
     state.releases.map((r) => ({
         label: `${r.tag_name}${r.prerelease ? " (pre)" : ""}  ${r.published_at?.slice(0, 10) ?? ""}`,
@@ -165,18 +154,23 @@ const releaseInfo = computed(() => {
 const boardOptions = computed(() => {
     const filter = state.boardFilter.trim().toLowerCase();
     const unified = new Set(state.targets?.unified ?? []);
-    return state.allBoards
-        .filter((b) => b.toLowerCase().includes(filter))
-        .map((b) => ({
-            label: b + (unified.has(b) ? "" : " (legacy)"),
-            value: b,
-        }));
+    const filtered = state.allBoards.filter((b) => b.toLowerCase().includes(filter));
+    // Текущий выбор всегда оставляем в списке, чтобы USelectMenu не терял value
+    if (
+        state.selectedBoard &&
+        !filtered.includes(state.selectedBoard) &&
+        state.allBoards.includes(state.selectedBoard)
+    ) {
+        filtered.push(state.selectedBoard);
+    }
+    return filtered.map((b) => ({
+        label: b + (unified.has(b) ? "" : " (legacy)"),
+        value: b,
+    }));
 });
 
 const radioOptions = computed(() => ezBetaGroupOptions("radio").map(toOption));
 const motorOptions = computed(() => ezBetaGroupOptions("motor").map(toOption));
-// ВАЖНО: никаких опций с value: "" — Nuxt UI/reka-ui их запрещает.
-// "Не выбрано" реализуем через `clearable` + placeholder на самом USelect.
 const telemetryOptions = computed(() => ezBetaGroupOptions("telemetry").map(toOption));
 const osdOptions = computed(() =>
     EZBETA_OSD_NAMES
@@ -202,6 +196,28 @@ const telemetryHint = computed(() => {
     return "Выбранный протокол приёмника не поддерживает телеметрию";
 });
 
+/**
+ * Живое превью того, что уйдёт в POST /build {options}.
+ * Ровно тот же вызов, что делает handleLoadRemoteFile в FirmwareFlasherTab,
+ * поэтому любая ошибка валидации (невалидный ENABLE, дубликат) видна сразу.
+ */
+const optionsPreview = computed(() => {
+    try {
+        const list = collectEzBetaOptions({
+            selectedRadio: state.selectedRadio,
+            selectedOsd: state.selectedOsd,
+            selectedTelemetry: state.selectedTelemetry,
+            selectedMotor: state.selectedMotor,
+            selectedOther: state.selectedOther,
+            selectedExpert: state.selectedExpert,
+            customFlags: state.customFlags,
+        });
+        return { text: list.join(" ") || "(нет опций)", error: "" };
+    } catch (e) {
+        return { text: "", error: (e as Error).message };
+    }
+});
+
 function toOption(o: EzBetaOption) {
     return { label: o.name + ezBetaHintText(o), value: o.name };
 }
@@ -213,7 +229,6 @@ function removeCustomFlag(idx: number) {
     state.customFlags.splice(idx, 1);
 }
 
-// при потере поддержки телеметрии сбрасываем выбор в null (а не "")
 watch(telemetrySupported, (ok) => {
     if (!ok) state.selectedTelemetry = null;
 });
