@@ -20,6 +20,7 @@ export interface EzBetaState {
     selectedOther: Record<string, boolean>;
     selectedExpert: Record<string, boolean>;
     customFlags: { name: string; value: string }[];
+    statusLog: string[];
 }
 
 export const EZBETA_WORKER_URL_DEFAULT = "https://ezbeta.nik-trenikhin.workers.dev";
@@ -49,6 +50,7 @@ export function createEzBetaState(): EzBetaState {
         selectedOther: {},
         selectedExpert: {},
         customFlags: [],
+        statusLog: [],
     };
 }
 

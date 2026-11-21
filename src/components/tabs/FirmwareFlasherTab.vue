@@ -15,18 +15,42 @@
                 />
                 <!-- /=== EZBETA === -->
 
-                <FlasherFlashTab
-                    v-if="activeFlasherStep === 'flash'"
-                    :cloud-build="cloudBuildStub"
-                    :on-save-firmware="saveFirmware"
-                    :flash-ring-color="flashRingColor"
-                    :on-no-reboot-change="handleNoRebootChange"
-                    :on-erase-chip-change="handleEraseChipChange"
-                    :on-flash-manual-baud-change="handleFlashManualBaudChange"
-                    :on-flash-manual-baud-rate-change="handleFlashManualBaudRateChange"
-                    :on-restore-backup="handleRestoreBackup"
-                    :firmware-accepts-config="firmwareAcceptsConfig"
-                />
+                                <template v-if="activeFlasherStep === 'flash'">
+                    <!-- Штатный flash-шаг — как только файл загружен -->
+                    <FlasherFlashTab
+                        v-if="state.firmwareLoadedName || state.flashingInProgress"
+                        :cloud-build="cloudBuildStub"
+                        :on-save-firmware="saveFirmware"
+                        :flash-ring-color="flashRingColor"
+                        :on-no-reboot-change="handleNoRebootChange"
+                        :on-erase-chip-change="handleEraseChipChange"
+                        :on-flash-manual-baud-change="handleFlashManualBaudChange"
+                        :on-flash-manual-baud-rate-change="handleFlashManualBaudRateChange"
+                        :on-restore-backup="handleRestoreBackup"
+                        :firmware-accepts-config="firmwareAcceptsConfig"
+                    />
+                    <!-- Пока идёт сборка/скачивание — показываем лог вместо пустого экрана -->
+                    <section
+                        v-else-if="ezBetaState.statusLog.length > 0"
+                        class="rounded-lg border border-default bg-elevated/30 p-4"
+                    >
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-semibold">Лог сборки / скачивания</h3>
+                            <UButton
+                                size="xs"
+                                variant="ghost"
+                                @click="ezBetaState.statusLog.splice(0, ezBetaState.statusLog.length)"
+                            >
+                                Очистить
+                            </UButton>
+                        </div>
+                        <pre
+                            class="text-xs whitespace-pre-wrap max-h-[60vh] overflow-auto font-mono"
+                        >{{ ezBetaState.statusLog.join("\n") }}</pre>
+                    </section>
+                    <!-- Если статусов пока нет, но файла ещё нет — заглушка -->
+                    <div v-else class="text-sm text-muted p-4">Ожидание данных…</div>
+                </template>
             </div>
         </div>
 
@@ -155,12 +179,10 @@ import EzBetaBoardBuildTab from "./firmware-flasher/EzBetaBoardBuildTab.vue";
 import {
     FLASHER_STATE,
     createFlasherState,
-    type BuildOption,
     type TargetDetail,
 } from "./firmware-flasher/flasherState";
 import {
     EZBETA_STATE,
-    EZBETA_WORKER_URL_STORAGE_KEY,
     createEzBetaState,
     type EzBetaState,
 } from "./firmware-flasher/ezbetaState";
@@ -200,6 +222,17 @@ export default defineComponent({
         const ezBetaState = reactive<EzBetaState>(createEzBetaState());
         provide(EZBETA_STATE, ezBetaState);
         const ezBetaApi = new EzBetaApi(ezBetaState.workerUrl);
+        /**
+         * Пишет строку в ezBetaState.statusLog (виден в UI) и в LogView.
+         */
+        const pushStatus = (msg: string) => {
+            const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            ezBetaState.statusLog.push(line);
+            if (ezBetaState.statusLog.length > 300) {
+                ezBetaState.statusLog.splice(0, ezBetaState.statusLog.length - 300);
+            }
+            gui_log(`[EZBETA] ${msg}`);
+        };
         const loadingRemote = ref(false);
 
         // Заглушка вместо штатного useCloudBuild: у FlasherFlashTab этот prop
@@ -497,21 +530,63 @@ export default defineComponent({
 
         // ==================== обработчики борды/версии ====================
         const handleDetectBoard = () => {
-            const detected = fcStore.config?.board_name;
-            if (!detected) {
-                gui_log("Плата не определена: подключитесь к контроллеру.");
+            const cfg = fcStore.config as any;
+            if (!cfg) {
+                pushStatus("Нет подключения к FC. Подключитесь и повторите.");
                 return;
             }
-            if (ezBetaState.allBoards.includes(detected)) {
-                ezBetaState.selectedBoard = detected;
-                setConfig({ ezbeta_board: detected });
-                updateTargetDetailFromEzBeta();
-            } else {
-                gui_log(`[EZBETA] Плата ${detected} отсутствует в списке ezBeta.`);
-            }
-        };
 
-        // при выборе версии/борда обновляем targetDetail и сохраняем
+            // Собираем все возможные имена платы из FC config.
+            const candidates: string[] = [];
+            const add = (v: unknown) => {
+                if (typeof v === "string" && v.length > 0) candidates.push(v);
+            };
+            add(cfg.target);
+            add(cfg.target_name);
+            add(cfg.boardName);
+            add(cfg.board_name);
+            add(cfg.boardIdentifier);
+            add(cfg.board_identifier);
+            add((fcStore as any).target);
+
+            if (candidates.length === 0) {
+                pushStatus("FC не сообщил имя платы. Попробуйте переподключиться.");
+                return;
+            }
+            pushStatus(`Detect: пробую [${candidates.join(", ")}]`);
+
+            const norm = (s: string) => s.replace(/[\s_\-.]/g, "").toUpperCase();
+
+            const select = (name: string) => {
+                ezBetaState.selectedBoard = name;
+                setConfig({ ezbeta_board: name });
+                updateTargetDetailFromEzBeta();
+                pushStatus(`Плата выбрана: ${name}`);
+            };
+
+            // 1) Exact match
+            for (const cand of candidates) {
+                if (ezBetaState.allBoards.includes(cand)) return select(cand);
+            }
+            // 2) Normalized match (SPEEDYBEE F405 V4 → SPEEDYBEEF405V4)
+            for (const cand of candidates) {
+                const match = ezBetaState.allBoards.find((b) => norm(b) === norm(cand));
+                if (match) return select(match);
+            }
+            // 3) Contains (S405 ⊂ SPEEDYBEEF405V4 и наоборот)
+            for (const cand of candidates) {
+                if (cand.length < 4) continue;
+                const match = ezBetaState.allBoards.find(
+                    (b) => norm(b).includes(norm(cand)) || norm(cand).includes(norm(b)),
+                );
+                if (match) return select(match);
+            }
+
+            pushStatus(`Плата не найдена в ezBeta (кандидаты: ${candidates.join(", ")})`);
+        };
+        // ==================== watchers ====================
+
+        // Сохраняем выбор версии/платы в config при изменении и обновляем targetDetail.
         watch(
             () => ezBetaState.selectedVersion,
             (v) => {
@@ -524,6 +599,29 @@ export default defineComponent({
             (v) => {
                 if (v) setConfig({ ezbeta_board: v });
                 updateTargetDetailFromEzBeta();
+            },
+        );
+
+        // Автоопределение платы, когда FC подключается ПОСЛЕ открытия вкладки.
+        watch(
+            () => fcStore.config,
+            (cfg) => {
+                if (cfg && ezBetaState.allBoards.length > 0 && !ezBetaState.selectedBoard) {
+                    handleDetectBoard();
+                }
+            },
+        );
+
+        // Автоопределение, когда FC уже подключён К МОМЕНТУ, как список плат догрузился
+        // (обычный сценарий: пользователь зашёл на вкладку при уже подключённом FC —
+        // fcStore.config уже стоит, но ezBetaState.allBoards.length был 0 во время
+        // первого срабатывания watch на fcStore.config).
+        watch(
+            () => ezBetaState.allBoards.length,
+            (len) => {
+                if (len > 0 && fcStore.config && !ezBetaState.selectedBoard) {
+                    handleDetectBoard();
+                }
             },
         );
 
@@ -557,20 +655,19 @@ export default defineComponent({
             return !!result;
         };
 
-        const handleLoadRemoteFile = async () => {
-            console.log("[EZBETA] handleLoadRemoteFile click, loadRemoteButtonDisabled =", state.loadRemoteButtonDisabled);
+            const handleLoadRemoteFile = async () => {
             if (state.loadRemoteButtonDisabled) {
-                gui_log("[EZBETA] Кнопка 'Load online' заблокирована. Выберите версию и плату.");
+                pushStatus("Кнопка 'Load online' заблокирована (нет версии/платы).");
                 return;
             }
 
             const version = ezBetaState.selectedVersion;
             const config = ezBetaState.selectedBoard;
             if (!version || !config) {
-                gui_log("[EZBETA] Не выбраны версия или плата.");
+                pushStatus("Не выбраны версия или плата.");
                 return;
             }
-            gui_log(`[EZBETA] Load online: version=${version}, config=${config}`);
+            pushStatus(`Load online: version=${version}, config=${config}`);
 
             const shouldContinue = await enforceOSDSelection();
             if (!shouldContinue) return;
@@ -580,7 +677,8 @@ export default defineComponent({
             loadingRemote.value = true;
 
             state.localFirmwareLoaded = false;
-            state.developmentFirmwareLoaded = !!ezBetaState.releases.find((r) => r.tag_name === version)?.prerelease;
+            state.developmentFirmwareLoaded =
+                !!ezBetaState.releases.find((r) => r.tag_name === version)?.prerelease;
             clearLoadedFirmwareInfo();
 
             let options: string[];
@@ -595,13 +693,13 @@ export default defineComponent({
                     customFlags: ezBetaState.customFlags,
                 });
             } catch (e) {
-                console.error(`${logHead} collectOptions:`, e);
+                pushStatus(`Ошибка валидации опций: ${(e as Error).message}`);
                 flashingMessage((e as Error).message, FLASH_MESSAGE_TYPES.INVALID);
                 enableLoadRemoteFileButton(true);
                 loadingRemote.value = false;
                 return;
             }
-            gui_log(`[EZBETA] options: ${options.join(" ") || "(empty)"}`);
+            pushStatus(`Опции: ${options.join(" ") || "(пусто)"}`);
 
             activeFlasherStep.value = "flash";
             await nextTick();
@@ -610,26 +708,25 @@ export default defineComponent({
             let result: { data: string; filename: string };
             try {
                 result = await ezBetaApi.buildOrDownload(version, config, options, (status) => {
-                    console.log("[EZBETA] status:", status);
-                    gui_log(`[EZBETA] ${status}`);
+                    pushStatus(status);
                     flashingMessage(status, FLASH_MESSAGE_TYPES.NEUTRAL);
                 });
             } catch (e) {
-                console.error(`${logHead} buildOrDownload:`, e);
                 const msg = `${$t("firmwareFlasherFailedToLoadOnlineFirmware")}: ${(e as Error).message}`;
+                pushStatus(`ERROR buildOrDownload: ${(e as Error).message}`);
                 flashingMessage(msg, FLASH_MESSAGE_TYPES.INVALID);
-                gui_log(`[EZBETA] ERROR buildOrDownload: ${(e as Error).message}`);
                 enableLoadRemoteFileButton(true);
                 loadingRemote.value = false;
                 return;
             }
 
-            console.log("[EZBETA] downloaded:", result.filename, "len=", result.data.length);
+            pushStatus(`Скачано: ${result.filename} (${result.data.length} байт)`);
 
             try {
                 await processFile(result.data as unknown as FirmwareData, result.filename);
+                pushStatus(`Прошивка загружена в Flash-шаг: ${result.filename}`);
             } catch (e) {
-                console.error(`${logHead} processFile:`, e);
+                pushStatus(`ERROR processFile: ${(e as Error).message}`);
                 flashingMessage(
                     `Не удалось распарсить ${result.filename}: ${(e as Error).message}`,
                     FLASH_MESSAGE_TYPES.INVALID,
