@@ -2,7 +2,9 @@
     <div class="ezbeta-board-build flex flex-col gap-4">
         <!-- ============== Версия прошивки ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4">
-            <h3 class="text-sm font-semibold mb-2">{{ $t("firmwareFlasherVersionSelectionHeader") }}</h3>
+            <h3 class="text-sm font-semibold mb-2">
+                {{ tx("firmwareFlasherVersionSelectionHeader", "Выбор версии прошивки") }}
+            </h3>
             <div class="flex flex-wrap items-center gap-3">
                 <USelect
                     v-model="state.selectedVersion"
@@ -17,10 +19,18 @@
 
         <!-- ============== Плата ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4">
-            <h3 class="text-sm font-semibold mb-2">{{ $t("firmwareFlasherBoardSelectionHeader") }}</h3>
+            <h3 class="text-sm font-semibold mb-2">
+                {{ tx("firmwareFlasherBoardSelectionHeader", "Выбор платы") }}
+            </h3>
             <div class="flex flex-wrap items-center gap-3">
                 <UInput v-model="state.boardFilter" placeholder="Поиск платы..." />
+                <!--
+                    :key форсирует пересоздание USelect при изменении фильтра.
+                    reka-ui/reka-based USelect не реагирует на изменение items пока
+                    dropdown не закрыт — а с :key он рендерится с новым списком.
+                -->
                 <USelect
+                    :key="'board-' + state.boardFilter"
                     v-model="state.selectedBoard"
                     :items="boardOptions"
                     :placeholder="state.loading ? 'Загрузка…' : '—'"
@@ -28,7 +38,7 @@
                     class="min-w-[280px]"
                 />
                 <UButton variant="outline" @click="onDetectBoard">
-                    {{ $t("firmwareFlasherButtonDetectBoard") }}
+                    {{ tx("firmwareFlasherButtonDetectBoard", "Определить") }}
                 </UButton>
                 <span class="text-xs text-muted">Плат: {{ state.allBoards.length }}</span>
             </div>
@@ -36,7 +46,9 @@
 
         <!-- ============== Конфигурация сборки ============== -->
         <section class="rounded-lg border border-default bg-elevated/30 p-4 flex flex-col gap-4">
-            <h3 class="text-sm font-semibold">{{ $t("firmwareFlasherBuildConfiguration") }}</h3>
+            <h3 class="text-sm font-semibold">
+                {{ tx("firmwareFlasherBuildConfiguration", "Конфигурация сборки") }}
+            </h3>
 
             <label class="grid grid-cols-[200px_1fr] items-center gap-3 text-sm">
                 <span class="text-muted">Протокол приёмника</span>
@@ -55,6 +67,8 @@
                         v-model="state.selectedTelemetry"
                         :items="telemetryOptions"
                         :disabled="!telemetrySupported"
+                        clearable
+                        placeholder="Не выбрано"
                         class="min-w-[280px]"
                     />
                     <span v-if="!telemetrySupported" class="text-xs text-muted">{{ telemetryHint }}</span>
@@ -124,13 +138,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-// Деструктурируем из props: `state` — это reactive-объект, ссылка на него
-// не меняется при ререндере, поэтому реактивность сохраняется.
 const { state } = props;
 const onDetectBoard = props.onDetectBoard;
 
-const $t = (key: string, params?: Record<string, unknown>) => i18n.getMessage(key, params);
+/**
+ * i18n с fallback: если ключа нет в locale-файлах — возвращаем строку по умолчанию
+ * (а не сам ключ). Позволяет не править src/locales/*.json ради одной вкладки.
+ */
+const tx = (key: string, fallback: string): string => {
+    const v = i18n.getMessage(key);
+    return !v || v === key ? fallback : v;
+};
 
 const versionOptions = computed(() =>
     state.releases.map((r) => ({
@@ -156,11 +174,10 @@ const boardOptions = computed(() => {
 });
 
 const radioOptions = computed(() => ezBetaGroupOptions("radio").map(toOption));
-const telemetryOptions = computed(() => [
-    { label: "Не выбрано", value: "" },
-    ...ezBetaGroupOptions("telemetry").map(toOption),
-]);
 const motorOptions = computed(() => ezBetaGroupOptions("motor").map(toOption));
+// ВАЖНО: никаких опций с value: "" — Nuxt UI/reka-ui их запрещает.
+// "Не выбрано" реализуем через `clearable` + placeholder на самом USelect.
+const telemetryOptions = computed(() => ezBetaGroupOptions("telemetry").map(toOption));
 const osdOptions = computed(() =>
     EZBETA_OSD_NAMES
         .map((n) => findEzBetaOption(n))
@@ -196,7 +213,8 @@ function removeCustomFlag(idx: number) {
     state.customFlags.splice(idx, 1);
 }
 
+// при потере поддержки телеметрии сбрасываем выбор в null (а не "")
 watch(telemetrySupported, (ok) => {
-    if (!ok) state.selectedTelemetry = "";
+    if (!ok) state.selectedTelemetry = null;
 });
 </script>

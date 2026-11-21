@@ -14,7 +14,7 @@ export interface EzBetaState {
 
     selectedRadio: string;
     selectedOsd: string;
-    selectedTelemetry: string;
+    selectedTelemetry: string | null;
     selectedMotor: string;
 
     selectedOther: Record<string, boolean>;
@@ -44,7 +44,7 @@ export function createEzBetaState(): EzBetaState {
         boardFilter: "",
         selectedRadio: "CRSF",
         selectedOsd: "OSD_SD",
-        selectedTelemetry: "",
+        selectedTelemetry: null,
         selectedMotor: "DSHOT",
         selectedOther: {},
         selectedExpert: {},

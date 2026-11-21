@@ -60,7 +60,7 @@
                 <UButton
                     :label="$t('firmwareFlasherButtonLoadOnline')"
                     :disabled="state.loadRemoteButtonDisabled || state.flashingInProgress"
-                    :loading="state.loadRemoteLoading"
+                    :loading="loadingRemote"
                     @click="handleLoadRemoteFile"
                 />
                 <UDropdownMenu
@@ -200,6 +200,7 @@ export default defineComponent({
         const ezBetaState = reactive<EzBetaState>(createEzBetaState());
         provide(EZBETA_STATE, ezBetaState);
         const ezBetaApi = new EzBetaApi(ezBetaState.workerUrl);
+        const loadingRemote = ref(false);
 
         // Заглушка вместо штатного useCloudBuild: у FlasherFlashTab этот prop
         // используется только для отображения статуса облачной сборки.
@@ -551,21 +552,29 @@ export default defineComponent({
         };
 
         const handleLoadRemoteFile = async () => {
-            if (state.loadRemoteButtonDisabled) return;
+            console.log("[EZBETA] handleLoadRemoteFile click, loadRemoteButtonDisabled =", state.loadRemoteButtonDisabled);
+            if (state.loadRemoteButtonDisabled) {
+                gui_log("[EZBETA] Кнопка 'Load online' заблокирована. Выберите версию и плату.");
+                return;
+            }
 
             const version = ezBetaState.selectedVersion;
             const config = ezBetaState.selectedBoard;
             if (!version || !config) {
-                gui_log($t("firmwareFlasherNoFirmwareSelected"));
+                gui_log("[EZBETA] Не выбраны версия или плата.");
                 return;
             }
+            gui_log(`[EZBETA] Load online: version=${version}, config=${config}`);
 
             const shouldContinue = await enforceOSDSelection();
             if (!shouldContinue) return;
 
             enableFlashButton(false);
             enableLoadRemoteFileButton(false);
+            loadingRemote.value = true;
+
             state.localFirmwareLoaded = false;
+            state.developmentFirmwareLoaded = !!ezBetaState.releases.find((r) => r.tag_name === version)?.prerelease;
             clearLoadedFirmwareInfo();
 
             let options: string[];
@@ -580,27 +589,48 @@ export default defineComponent({
                     customFlags: ezBetaState.customFlags,
                 });
             } catch (e) {
+                console.error(`${logHead} collectOptions:`, e);
                 flashingMessage((e as Error).message, FLASH_MESSAGE_TYPES.INVALID);
                 enableLoadRemoteFileButton(true);
+                loadingRemote.value = false;
                 return;
             }
+            gui_log(`[EZBETA] options: ${options.join(" ") || "(empty)"}`);
 
             activeFlasherStep.value = "flash";
             await nextTick();
             flashingMessage($t("firmwareFlasherButtonDownloading"), FLASH_MESSAGE_TYPES.NEUTRAL);
 
+            let result: { data: string; filename: string };
             try {
-                const { data, filename } = await ezBetaApi.buildOrDownload(version, config, options, (status) => {
+                result = await ezBetaApi.buildOrDownload(version, config, options, (status) => {
+                    console.log("[EZBETA] status:", status);
+                    gui_log(`[EZBETA] ${status}`);
                     flashingMessage(status, FLASH_MESSAGE_TYPES.NEUTRAL);
                 });
-                await processFile(data as unknown as FirmwareData, filename);
             } catch (e) {
                 console.error(`${logHead} buildOrDownload:`, e);
+                const msg = `${$t("firmwareFlasherFailedToLoadOnlineFirmware")}: ${(e as Error).message}`;
+                flashingMessage(msg, FLASH_MESSAGE_TYPES.INVALID);
+                gui_log(`[EZBETA] ERROR buildOrDownload: ${(e as Error).message}`);
+                enableLoadRemoteFileButton(true);
+                loadingRemote.value = false;
+                return;
+            }
+
+            console.log("[EZBETA] downloaded:", result.filename, "len=", result.data.length);
+
+            try {
+                await processFile(result.data as unknown as FirmwareData, result.filename);
+            } catch (e) {
+                console.error(`${logHead} processFile:`, e);
                 flashingMessage(
-                    `${$t("firmwareFlasherFailedToLoadOnlineFirmware")}: ${(e as Error).message}`,
+                    `Не удалось распарсить ${result.filename}: ${(e as Error).message}`,
                     FLASH_MESSAGE_TYPES.INVALID,
                 );
+            } finally {
                 enableLoadRemoteFileButton(true);
+                loadingRemote.value = false;
             }
         };
 
@@ -1053,6 +1083,7 @@ export default defineComponent({
         return {
             state,
             ezBetaState,
+            loadingRemote,
             flashRingColor,
             firmwareAcceptsConfig,
             activeFlasherStep,
