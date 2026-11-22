@@ -130,3 +130,79 @@ export function collectEzBetaOptions(input: {
     }
     return list;
 }
+
+/** Группы, в которых допускается только одна опция (совпадает с build_options.json). */
+export const EZBETA_SINGLE_CHOICE_GROUPS = ["radio", "telemetry", "motor"] as const;
+
+/**
+ * 8-символьный sha256 от канонизированной строки флагов.
+ * Полностью повторяет шаг «Validate and canonicalize flags» из
+ * .github/workflows/build-firmware.yml — поэтому хэш совпадает с суффиксом,
+ * который CI дописывает к имени ассета: <CONFIG>_<hash>.hex.
+ *
+ * Требует HTTPS или localhost (crypto.subtle).
+ */
+export async function computeOptionFlagsHash(options: string[]): Promise<string> {
+    const flags: string[] = ["-DCLOUD_BUILD"];
+    const regular: string[] = [];
+
+    for (const opt of options) {
+        if (opt.startsWith("ENABLE_")) flags.push(`-D${opt}`);
+        else regular.push(opt);
+    }
+
+    const byName = new Map(EZBETA_CATALOG.map((o) => [o.name, o] as const));
+    const singleChoice = new Set<string>(EZBETA_SINGLE_CHOICE_GROUPS);
+
+    // --- дубликаты и неизвестные опции ---
+    const seen = new Set<string>();
+    for (const opt of regular) {
+        if (seen.has(opt)) throw new Error(`Дубликат опции: ${opt}`);
+        seen.add(opt);
+        if (!byName.has(opt)) throw new Error(`Неизвестная опция: ${opt}`);
+    }
+
+    // --- занятые группы одиночного выбора ---
+    const chosenGroups = new Set<string>();
+    for (const opt of regular) {
+        const o = byName.get(opt)!;
+        if (singleChoice.has(o.group)) chosenGroups.add(o.group);
+    }
+
+    // --- все опции, конфликтующие с выбором пользователя ---
+    const excluded = new Set<string>();
+    for (const opt of regular) {
+        const o = byName.get(opt)!;
+        for (const c of o.conflicts ?? []) excluded.add(c);
+    }
+
+    // --- дефолты (пропускаем excluded и занятые группы) ---
+    for (const o of EZBETA_CATALOG) {
+        if (!o.default) continue;
+        if (excluded.has(o.name)) continue;
+        if (chosenGroups.has(o.group)) continue;
+        for (const f of o.flags) flags.push(`-D${f}`);
+    }
+
+    // --- флаги явно выбранных опций ---
+    for (const opt of regular) {
+        const o = byName.get(opt)!;
+        for (const f of o.flags) flags.push(`-D${f}`);
+    }
+
+    // --- канонизация: sort -u → строка с хвостовым пробелом ---
+    // JS sort() по умолчанию эквивалентен bash `LC_ALL=C sort` для ASCII
+    const uniq = [...new Set(flags)].sort();
+    const canonical = uniq.length > 0 ? uniq.join(" ") + " " : "";
+
+    const hex = await sha256Hex(canonical);
+    return hex.slice(0, 8);
+}
+
+async function sha256Hex(text: string): Promise<string> {
+    if (!globalThis.crypto?.subtle) {
+        throw new Error("crypto.subtle недоступен (нужен HTTPS/localhost)");
+    }
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}

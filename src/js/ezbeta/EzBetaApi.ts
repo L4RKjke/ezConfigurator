@@ -1,3 +1,5 @@
+import { computeOptionFlagsHash } from "./catalog";
+
 // Клиент Cloudflare Worker'а ezBeta. Все запросы идут на {baseUrl}.
 
 export interface EzBetaAsset {
@@ -97,97 +99,82 @@ export class EzBetaApi {
      *                   обновить progress-лейбл («сборка запущена, ждём…»).
      */
     async buildOrDownload(
-    version: string,
-    config: string,
-    options: string[],
-    onStatus: (msg: string) => void,
-): Promise<EzBetaBuildResult> {
-    onStatus(`Ищу готовый HEX для ${config} в релизе ${version}…`);
-    const releases = await this.listReleases(100);
-    const release = releases.find((r) => r.tag_name === version);
-    if (!release) throw new Error(`Релиз ${version} не найден в /releases`);
+        version: string,
+        config: string,
+        options: string[],
+        onStatus: (msg: string) => void,
+    ): Promise<EzBetaBuildResult> {
+        // Тот же хэш, что дописал CI в имя ассета: betaflight_..._<config>_<hash>.hex
+        const hash = await computeOptionFlagsHash(options);
+        const suffix = `_${config}_${hash}.hex`;
+        onStatus(`Хэш опций: ${hash}. Ищу *${suffix} в релизе ${version}…`);
 
-    const existing = pickHexAsset(release, config);
-    if (existing) {
-        onStatus(`Скачиваю ${existing.name} (${Math.round(existing.size / 1024)} KB)…`);
-        const data = await this.downloadAssetAsText(existing);
-        return { data, filename: existing.name };
-    }
+        // ---- 1. Точный матчинг по хэшу ----
+        const releases = await this.listReleases(100);
+        const release = releases.find((r) => r.tag_name === version);
+        if (!release) throw new Error(`Релиз ${version} не найден в /releases`);
 
-    const dispatchTime = new Date().toISOString();
-    onStatus(`HEX нет — запускаю сборку ${config} (${version})…`);
-    await this.startBuild(config, version, options);
-
-    const TIMEOUT_MS = 20 * 60 * 1000;
-    const INTERVAL_MS = 15 * 1000;
-    const startedAt = Date.now();
-    let lastStatus = "";
-
-    onStatus("Сборка запущена, ждём прогон…");
-
-    while (Date.now() - startedAt < TIMEOUT_MS) {
-        await sleep(INTERVAL_MS);
-        let runs: EzBetaRun[];
-        try {
-            runs = await this.pollRuns(dispatchTime);
-        } catch (e) {
-            onStatus(`Ошибка опроса /runs: ${(e as Error).message}`);
-            continue;
+        const existing = release.assets.find((a) => a.name.endsWith(suffix));
+        if (existing) {
+            onStatus(`Найден ${existing.name} (${Math.round(existing.size / 1024)} KB), скачиваю…`);
+            const data = await this.downloadAssetAsText(existing);
+            return { data, filename: existing.name };
         }
-        const run = runs[0];
-        if (!run) {
-            onStatus("Ждём появления прогона…");
-            continue;
-        }
-        const status = `${run.status} / ${run.conclusion ?? "-"}`;
-        if (status !== lastStatus) {
-            onStatus(`Сборка #${run.run_number}: ${status}`);
-            lastStatus = status;
-        }
-        if (run.status === "completed") {
-            if (run.conclusion !== "success") {
-                throw new Error(`Сборка завершилась: ${run.conclusion}. ${run.html_url}`);
+
+        // ---- 2. Сборка ----
+        const dispatchTime = new Date().toISOString();
+        onStatus("HEX с этим набором опций ещё не собран — запускаю сборку…");
+        await this.startBuild(config, version, options);
+
+        const TIMEOUT_MS = 20 * 60 * 1000;
+        const INTERVAL_MS = 15 * 1000;
+        const startedAt = Date.now();
+        let lastStatus = "";
+        onStatus("Сборка запущена, ждём прогон…");
+
+        while (Date.now() - startedAt < TIMEOUT_MS) {
+            await sleep(INTERVAL_MS);
+            let runs: EzBetaRun[];
+            try {
+                runs = await this.pollRuns(dispatchTime);
+            } catch (e) {
+                onStatus(`Ошибка опроса /runs: ${(e as Error).message}`);
+                continue;
             }
-            onStatus("Сборка успешна, перечитываю релиз…");
-            const updated = await this.listReleases(100);
-            const fresh = updated.find((r) => r.tag_name === version);
-            if (!fresh) throw new Error("Релиз пропал после сборки");
-            const asset = pickFreshHexAsset(fresh, config, dispatchTime);
-            if (!asset) throw new Error(`HEX для ${config} не найден после сборки (проверьте имя ассета)`);
-            onStatus(`Скачиваю ${asset.name}…`);
-            const data = await this.downloadAssetAsText(asset);
-            return { data, filename: asset.name };
+            const run = runs[0];
+            if (!run) {
+                onStatus("Ждём появления прогона…");
+                continue;
+            }
+            const status = `${run.status} / ${run.conclusion ?? "-"}`;
+            if (status !== lastStatus) {
+                onStatus(`Сборка #${run.run_number}: ${status}`);
+                lastStatus = status;
+            }
+            if (run.status === "completed") {
+                if (run.conclusion !== "success") {
+                    throw new Error(`Сборка завершилась: ${run.conclusion}. ${run.html_url}`);
+                }
+                onStatus("Сборка успешна, перечитываю релиз…");
+                const updated = await this.listReleases(100);
+                const fresh = updated.find((r) => r.tag_name === version);
+                if (!fresh) throw new Error("Релиз пропал после сборки");
+
+                const asset = fresh.assets.find((a) => a.name.endsWith(suffix));
+                if (!asset) {
+                    // Крайне маловероятно, но возможно при расхождении каталога и workflow
+                    throw new Error(
+                        `Ассет *${suffix} не появился в релизе. ` +
+                        `Проверьте, что build_options.json в ezBeta совпадает с catalog.ts.`,
+                    );
+                }
+                onStatus(`Скачиваю ${asset.name}…`);
+                const data = await this.downloadAssetAsText(asset);
+                return { data, filename: asset.name };
+            }
         }
+        throw new Error("Таймаут ожидания сборки (20 мин)");
     }
-
-    throw new Error("Таймаут ожидания сборки (20 мин)");
-}
-}
-
-function isHexForConfig(asset: EzBetaAsset, config: string): boolean {
-    // Как в рабочем test.txt: достаточно includes(config) + .hex.
-    // Строгий шаблон "_<config>_<hash>.hex" на практике слишком хрупок.
-    return asset.name.endsWith(".hex") && asset.name.includes(config);
-}
-
-
-function pickHexAsset(release: EzBetaRelease, config: string): EzBetaAsset | undefined {
-    const matches = release.assets.filter((a) => isHexForConfig(a, config));
-    if (matches.length === 0) return undefined;
-    return matches.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-}
-
-function pickFreshHexAsset(
-    release: EzBetaRelease,
-    config: string,
-    sinceIso: string,
-): EzBetaAsset | undefined {
-    const since = Date.parse(sinceIso) - 60_000;
-    const matches = release.assets.filter(
-        (a) => isHexForConfig(a, config) && Date.parse(a.updated_at) >= since,
-    );
-    if (matches.length === 0) return undefined;
-    return matches.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

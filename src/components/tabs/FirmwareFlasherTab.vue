@@ -742,6 +742,12 @@ export default defineComponent({
             const handleLoadRemoteFile = async () => {
             if (state.loadRemoteButtonDisabled) {
                 pushStatus("Кнопка 'Load online' заблокирована (нет версии/платы).");
+                try {
+                    const { computeOptionFlagsHash } = await import("@/js/ezbeta/catalog");
+                    pushStatus(`Хэш опций: ${await computeOptionFlagsHash(options)}`);
+                } catch (e) {
+                    pushStatus(`Не удалось вычислить хэш: ${(e as Error).message}`);
+                }
                 return;
             }
 
