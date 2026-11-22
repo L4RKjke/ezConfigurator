@@ -14,8 +14,7 @@
                     :on-detect-board="handleDetectBoard"
                 />
                 <!-- /=== EZBETA === -->
-
-                                <template v-if="activeFlasherStep === 'flash'">
+                <template v-if="activeFlasherStep === 'flash'">
                     <!-- Штатный flash-шаг — как только файл загружен -->
                     <FlasherFlashTab
                         v-if="state.firmwareLoadedName || state.flashingInProgress"
@@ -29,27 +28,39 @@
                         :on-restore-backup="handleRestoreBackup"
                         :firmware-accepts-config="firmwareAcceptsConfig"
                     />
-                    <!-- Пока идёт сборка/скачивание — показываем лог вместо пустого экрана -->
+
+                    <!-- Лог операций: виден ВСЕГДА, в том числе во время прошивки -->
                     <section
-                        v-else-if="ezBetaState.statusLog.length > 0"
-                        class="rounded-lg border border-default bg-elevated/30 p-4"
+                        v-if="ezBetaState.statusLog.length > 0"
+                        class="mt-3 rounded-lg border border-default bg-elevated/30 p-4"
                     >
                         <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-sm font-semibold">Лог сборки / скачивания</h3>
+                            <h3 class="text-sm font-semibold">
+                                Лог операций
+                                <span v-if="state.flashingInProgress" class="text-xs text-muted ml-2">(прошивка идёт…)</span>
+                            </h3>
                             <UButton
                                 size="xs"
                                 variant="ghost"
+                                :disabled="state.flashingInProgress"
                                 @click="ezBetaState.statusLog.splice(0, ezBetaState.statusLog.length)"
                             >
                                 Очистить
                             </UButton>
                         </div>
                         <pre
-                            class="text-xs whitespace-pre-wrap max-h-[60vh] overflow-auto font-mono"
+                            ref="flashLogEl"
+                            class="text-xs whitespace-pre-wrap max-h-[40vh] overflow-auto font-mono"
                         >{{ ezBetaState.statusLog.join("\n") }}</pre>
                     </section>
-                    <!-- Если статусов пока нет, но файла ещё нет — заглушка -->
-                    <div v-else class="text-sm text-muted p-4">Ожидание данных…</div>
+
+                    <!-- Если совсем ничего нет — заглушка -->
+                    <div
+                        v-else-if="!state.firmwareLoadedName && !state.flashingInProgress"
+                        class="text-sm text-muted p-4"
+                    >
+                        Ожидание данных…
+                    </div>
                 </template>
             </div>
         </div>
@@ -177,8 +188,10 @@ import SponsorTile from "../sponsor/SponsorTile.vue";
 import FlasherFlashTab from "./firmware-flasher/FlasherFlashTab.vue";
 import EzBetaBoardBuildTab from "./firmware-flasher/EzBetaBoardBuildTab.vue";
 import {
+    BOARD_SELECTION,
     FLASHER_STATE,
     createFlasherState,
+    type BuildOption,
     type TargetDetail,
 } from "./firmware-flasher/flasherState";
 import {
@@ -225,16 +238,34 @@ export default defineComponent({
         /**
          * Пишет строку в ezBetaState.statusLog (виден в UI) и в LogView.
          */
-        const pushStatus = (msg: string) => {
-            const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            ezBetaState.statusLog.push(line);
+        /** Добавляет строку в statusLog; дубликат по сравнению с последней записью отбрасывается. */
+        const appendToStatusLog = (msg: string | null | undefined) => {
+            if (!msg || !msg.trim()) return;
+            const last = ezBetaState.statusLog[ezBetaState.statusLog.length - 1] || "";
+            // Сравниваем без учёта таймстемп-префикса
+            const lastMsg = last.replace(/^\[[\d:.]+\]\s*/, "");
+            if (lastMsg === msg) return;
+            ezBetaState.statusLog.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
             if (ezBetaState.statusLog.length > 300) {
                 ezBetaState.statusLog.splice(0, ezBetaState.statusLog.length - 300);
             }
+        };
+
+        const pushStatus = (msg: string) => {
+            appendToStatusLog(msg);
             gui_log(`[EZBETA] ${msg}`);
         };
         const loadingRemote = ref(false);
-
+        const flashLogEl = ref<HTMLElement | null>(null);
+        watch(
+            () => ezBetaState.statusLog.length,
+            async () => {
+                await nextTick();
+                if (flashLogEl.value) {
+                    flashLogEl.value.scrollTop = flashLogEl.value.scrollHeight;
+                }
+            },
+        );
         // Заглушка вместо штатного useCloudBuild: у FlasherFlashTab этот prop
         // используется только для отображения статуса облачной сборки.
         const cloudBuildStub = {
@@ -244,6 +275,52 @@ export default defineComponent({
             cleanup: () => {},
             requestCloudBuild: async () => null,
         };
+
+        // FlasherFlashTab (шаг Прошивка) инжектит BOARD_SELECTION и падает на setup,
+        // если провайдера нет. Вся реальная работа идёт через ezBetaState, поэтому
+        // отдаём минимальный стаб и синхронизируем в него нужные поля.
+        const boardSelectionStub = reactive({
+            state: {
+                selectedBoard: "",
+                targets: [] as { target: string; group: "supported" | "legacy" }[],
+                firmwareVersionOptions: [] as { release: string; label: string }[],
+                selectedFirmwareVersion: "",
+            },
+            onBoardChange: async () => undefined,
+            onBuildTypeChange: async () => undefined,
+            handleDetectBoard: () => undefined,
+            resetBoardSelection: () => undefined,
+        });
+        provide(BOARD_SELECTION, boardSelectionStub as never);
+
+        watch(
+            () => ezBetaState.selectedBoard,
+            (v) => {
+                boardSelectionStub.state.selectedBoard = v || "";
+            },
+            { immediate: true },
+        );
+        watch(
+            () => ezBetaState.selectedVersion,
+            (v) => {
+                boardSelectionStub.state.selectedFirmwareVersion = v || "";
+            },
+            { immediate: true },
+        );
+        watch(
+            () => ezBetaState.targets,
+            (t) => {
+                if (!t) {
+                    boardSelectionStub.state.targets = [];
+                    return;
+                }
+                boardSelectionStub.state.targets = [
+                    ...t.unified.map((name) => ({ target: name, group: "supported" as const })),
+                    ...t.legacy.map((name) => ({ target: name, group: "legacy" as const })),
+                ];
+            },
+            { immediate: true },
+        );
 
         // Инициализируем чекбоксы значениями default из каталога.
         // OSD_SD / OSD_HD / FRSKYOSD НЕ кладём в selectedOther — они управляются
@@ -312,7 +389,14 @@ export default defineComponent({
                 case FLASH_MESSAGE_TYPES.VERIFYING: state.progressLabelClass = "verifying"; break;
                 default: state.progressLabelClass = ""; break;
             }
-            if (message !== null) state.progressLabelText = message;
+            if (message !== null) {
+                state.progressLabelText = message;
+                // Во время прошивки дублируем все сообщения в общий лог вкладки —
+                // это «Erasing chip…», «Flashing…», «Verifying…», «Programming complete».
+                if (state.flashingInProgress) {
+                    appendToStatusLog(message);
+                }
+            }
             if (
                 (state.flashingInProgress || state.flashProgressValue > 0) &&
                 (type === FLASH_MESSAGE_TYPES.VALID || type === FLASH_MESSAGE_TYPES.INVALID)
@@ -1187,6 +1271,7 @@ export default defineComponent({
             state,
             ezBetaState,
             loadingRemote,
+            flashLogEl,
             flashRingColor,
             firmwareAcceptsConfig,
             activeFlasherStep,
