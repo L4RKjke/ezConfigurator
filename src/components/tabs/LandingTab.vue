@@ -34,8 +34,8 @@
                 <strong>Защита от случайного дизарма.</strong>
             </div>
         </li>
-        <li class="feature todo">
-            <span class="mark" aria-label="не реализовано">✗</span>
+        <li class="feature done">
+            <span class="mark" aria-label="реализовано">✓</span>
             <div>
                 <strong>Загрузка кастомных прошивок через программатор.</strong>
             </div>
