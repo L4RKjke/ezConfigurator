@@ -1,213 +1,346 @@
 <template>
     <BaseTab tab-name="landing">
-<section class="fork-intro" lang="ru">
-    <h1>Возможности ezConfigurator</h1>
-    <ul class="features">
-        <li class="feature done">
-            <span class="mark" aria-label="реализовано">✓</span>
-            <div>
-                <strong>Настройка правил VTX.</strong>
-                <p>Правила можно задать прямо на вкладке «Видеопередатчик».</p>
-            </div>
-        </li>
-        <li class="feature todo">
-            <span class="mark" aria-label="не реализовано">✗</span>
-            <div>
-                <strong>Переключение правил VTX во время ARM.</strong>
-                <p>Отдельный флажок на той же вкладке разрешает переключать VTX правила.</p>
-            </div>
-        </li>
-        <li class="feature todo">
-            <span class="mark" aria-label="не реализовано">✗</span>
-            <div>
-                <strong>Бесконечный первый этап Failsafe.</strong>
-                <p>
-                    На вкладке «Failsafe», в настройках второго этапа рядом с длительностью
-                    первого, можно включить флажок «Бесконечный первый этап».
-                    Тогда перехода ко второму этапу по таймеру не будет.
-                </p>
-            </div>
-        </li>
-        <li class="feature todo">
-            <span class="mark" aria-label="не реализовано">✗</span>
-            <div>
-                <strong>Защита от случайного дизарма.</strong>
-            </div>
-        </li>
-        <li class="feature done">
-            <span class="mark" aria-label="реализовано">✓</span>
-            <div>
-                <strong>Загрузка кастомных прошивок через программатор.</strong>
-            </div>
-        </li>
-        <li class="feature todo">
-            <span class="mark" aria-label="не реализовано">✗</span>
-            <div>
-                <strong>Снятие защиты с дрона: отдельный режим.</strong>
-            </div>
-        </li>
-    </ul>
-</section>
+        <section class="kanban" lang="ru">
+            <h1>Дорожная карта ezConfigurator</h1>
 
+            <div class="columns">
+                <div
+                    v-for="column in columns"
+                    :key="column.key"
+                    class="column"
+                    :class="`column-${column.key}`"
+                >
+                    <header class="column-header">
+                        <h2>{{ column.title }}</h2>
+                        <span class="count">{{ column.items.length }}</span>
+                    </header>
+
+                    <ul class="cards">
+                        <li
+                            v-for="(card, index) in column.items"
+                            :key="index"
+                            class="card"
+                        >
+                            <div class="card-index">{{ index + 1 }}</div>
+
+                            <div class="card-body">
+                                <p v-if="card.title" class="card-title">
+                                    {{ card.title }}
+                                </p>
+
+                                <template v-if="card.subsections">
+                                    <div
+                                        v-for="(sub, subIndex) in card.subsections"
+                                        :key="subIndex"
+                                        class="subsection"
+                                    >
+                                        <p class="subsection-title">{{ sub.title }}</p>
+                                        <pre v-if="sub.code" class="code"><code>{{ sub.code }}</code></pre>
+                                    </div>
+                                </template>
+
+                                <pre v-else-if="card.code" class="code"><code>{{ card.code }}</code></pre>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
     </BaseTab>
 </template>
 
 <script setup lang="ts">
     import BaseTab from "./BaseTab.vue";
+
+    type CardSection = {
+        title: string;
+        code?: string;
+    };
+
+    type Card = {
+        title?: string;
+        code?: string;
+        subsections?: CardSection[];
+    };
+
+    type Column = {
+        key: string;
+        title: string;
+        items: Card[];
+    };
+
+    // ============================================================================
+    // Содержимое колонок. Редактируйте только этот блок.
+    // key: "backlog" | "todo" | "done" — влияет на цвет номера и бейджа.
+    // В карточке допустимо: title, code, subsections[{title, code}].
+    // ============================================================================
+    const columns: Column[] = [
+        {
+            key: "backlog",
+            title: "Backlog",
+            items: [
+                { title: "Снятие защиты с дрона как отдельный режим" },
+                { title: "Добавление каталога передатчиков во вкладку «Видеопередатчик»" },
+            ],
+        },
+        {
+            key: "todo",
+            title: "TODO",
+            items: [
+                {
+                    title: "Добавить тумблеры в UI для редактирования",
+                    subsections: [
+                        {
+                            title: "Переключение каналов во время арма",
+                            code: [
+                                "set vtx_allow_vtx_changes_while_armed=OFF",
+                                "set vtx_allow_vtx_changes_while_armed=ON",
+                            ].join("\n"),
+                        },
+                        {
+                            title: "Бесконечный failsafe",
+                            code: [
+                                "set failsafe_stage2_disabled=0",
+                                "set failsafe_stage2_disabled=1",
+                            ].join("\n"),
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            key: "done",
+            title: "Done",
+            items: [
+                { title: "Программатор для кастомных прошивок" },
+                { title: "Настройка правил в видеопередатчике" },
+                { title: "Кол-во VTX rules: 10 → 40" },
+                { title: "Кол-во бендов для сетки: 8 → 20" },
+                {
+                    title: "Переключение каналов во время арма",
+                    code: [
+                        "get vtx_allow_vtx_changes_while_armed",
+                        "set vtx_allow_vtx_changes_while_armed=OFF",
+                        "set vtx_allow_vtx_changes_while_armed=ON",
+                    ].join("\n"),
+                },
+                {
+                    title: "Бесконечный failsafe",
+                    code: [
+                        "set failsafe_stage2_disabled",
+                        "set failsafe_stage2_disabled=0",
+                        "set failsafe_stage2_disabled=1",
+                    ].join("\n"),
+                },
+            ],
+        },
+    ];
 </script>
 
 <style scoped>
-.fork-intro {
-    max-width: 72ch;
-    padding: clamp(16px, 4vw, 40px);
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.6;
+.tab-landing {
+    min-height: 100%;
+    background: transparent;
 }
 
-.fork-intro h1 {
-    margin: 0 0 1rem;
+.kanban {
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: clamp(16px, 3vw, 32px);
+    color: var(--text, #1f2937);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.kanban h1 {
+    margin: 0 0 1.5rem;
     font-size: 1.5rem;
+    font-weight: 700;
     line-height: 1.25;
 }
 
-.fork-intro ul {
-    margin: 0;
-    padding-inline-start: 1.4em;
-    list-style: disc;
-}
-
-.fork-intro li + li {
-    margin-top: 0.75em;
-}
-.tab-landing {
-    min-height: 100%;
-    background: transparent
-}
-.fork-intro h1::after {
+.kanban h1::after {
     content: "";
     display: block;
     width: 3rem;
     height: 2px;
     margin-top: 0.55rem;
     border-radius: 2px;
-    background: linear-gradient(90deg, var(--primary-500), var(--orb-live-mid));
-}
-.fork-intro {
-    max-width: 720px;
-    margin: 2rem auto;
-    padding: 2rem;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    color: #1f2937;
+    background: linear-gradient(90deg, var(--primary-500, #3b82f6), var(--orb-live-mid, #6366f1));
 }
 
-.fork-intro h1 {
-    margin: 0 0 1.5rem;
-    font-size: 1.75rem;
+.columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 2px;
+}
+
+.column-header h2 {
+    margin: 0;
+    font-size: 0.8rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #4b5563);
 }
 
-.features {
+.count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-secondary, #4b5563);
+}
+
+.column-backlog .count { background: #e5e7eb; color: #374151; }
+.column-todo .count    { background: #fef3c7; color: #92400e; }
+.column-done .count    { background: #d1fae5; color: #065f46; }
+
+.cards {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    gap: 12px;
-}
-
-.feature {
     display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 16px 18px;
-    border-radius: 12px;
-    background: #f7f8fa;
-    border: 1px solid #e5e7eb;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.feature:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+.card {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface, #ffffff);
+    border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.mark {
-    flex: 0 0 28px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+.card-index {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
     display: grid;
     place-items: center;
-    color: #ffffff;
-    font-size: 15px;
+    border-radius: 50%;
+    font-size: 0.7rem;
     font-weight: 700;
-    line-height: 1;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary, #6b7280);
 }
 
-.done .mark {
-    background: #22c55e;
-    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+.column-todo .card-index { background: #fef3c7; color: #92400e; }
+.column-done .card-index { background: #d1fae5; color: #065f46; }
+
+.card-body {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
-.todo .mark {
-    background: #ef4444;
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
-}
-
-.feature strong {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 1rem;
-}
-
-.feature p {
+.card-title {
     margin: 0;
-    color: #4b5563;
-    line-height: 1.5;
+    font-weight: 500;
+    color: var(--text, #1f2937);
 }
 
-.todo strong {
-    color: #6b7280;
+.subsection {
+    margin-top: 8px;
 }
 
-.todo p {
-    color: #9ca3af;
+.subsection:first-child {
+    margin-top: 0;
+}
+
+.subsection-title {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary, #4b5563);
+}
+
+.code {
+    margin: 6px 0 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.04);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--text, #1f2937);
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.code code {
+    font-family: inherit;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+}
+
+@media (max-width: 900px) {
+    .columns {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
-    .fork-intro {
-        background: #111827;
-        color: #f9fafb;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    .kanban {
+        color: var(--text, #f9fafb);
     }
 
-    .feature {
-        background: #1f2937;
-        border-color: #374151;
+    .column {
+        background: rgba(255, 255, 255, 0.02);
+        border-color: rgba(255, 255, 255, 0.06);
     }
 
-    .feature p {
-        color: #d1d5db;
+    .column-header h2,
+    .subsection-title,
+    .card-index,
+    .count {
+        color: var(--text-secondary, #9ca3af);
     }
 
-    .todo strong {
-        color: #9ca3af;
+    .card {
+        background: var(--surface, #1f2937);
+        border-color: rgba(255, 255, 255, 0.08);
     }
 
-    .todo p {
-        color: #6b7280;
+    .card-index {
+        background: rgba(255, 255, 255, 0.06);
     }
+
+    .code {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .column-backlog .count { background: #374151; color: #d1d5db; }
+    .column-todo .count    { background: #78350f; color: #fef3c7; }
+    .column-done .count    { background: #064e3b; color: #d1fae5; }
+
+    .column-todo .card-index { background: #78350f; color: #fef3c7; }
+    .column-done .card-index { background: #064e3b; color: #d1fae5; }
 }
-
-@media (max-width: 600px) {
-    .fork-intro {
-        padding: 1.25rem;
-        margin: 1rem;
-    }
-}
-
-
 </style>
