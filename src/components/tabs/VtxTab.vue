@@ -93,7 +93,12 @@
                         </SettingRow>
                         <!-- Allow VTX change while armed -->
                         <SettingRow :label="$t('vtxAllowChangeWhileArmed')" :help="$t('vtxAllowChangeWhileArmedHelp')">
-                            <USwitch v-model="allowVtxChangeWhileArmed" size="xs" />
+                            <USwitch
+                                :model-value="allowVtxChangeWhileArmed"
+                                size="xs"
+                                :disabled="!allowVtxLoaded || rulesBusy || recoveryRequired || isSaving || importBusy"
+                                @update:model-value="onAllowVtxChange"
+                            />
                         </SettingRow>
                     </div>
                 </UiBox>
@@ -444,6 +449,7 @@ import { useTranslation } from "i18next-vue";
 import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
 import { useConnectionStore } from "@/stores/connection";
 import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
+import { useVtxAllowChange } from "@/composables/useVtxAllowChange";
 
 export default defineComponent({
     name: "VtxTab",
@@ -457,6 +463,16 @@ export default defineComponent({
     },
     setup() {
         const { t } = useTranslation();
+
+        const {
+            allowVtxChangeWhileArmed,
+            allowVtxDirty,
+            allowVtxLoaded,
+            load: loadAllowVtxChange,
+            onChange: onAllowVtxChange,
+            markSaved: markAllowVtxSaved,
+        } = useVtxAllowChange();
+
 
         const {
             MAX_POWERLEVEL_VALUES,
@@ -536,10 +552,9 @@ export default defineComponent({
         const vtxProtocolOptions = computed(() => vtxProtocolValues.value.filter(({ value }) => value !== "RESERVED"));
 
         // A port-only change still has to enable Save; the VTX config's own dirty state cannot see it.
-        const saveButtonDisabled = computed(() => vtxConfigSaveDisabled.value && !vtxPortChanged.value);
-
-        // Пока чисто визуальное состояние: логика привяжется к прошивке позже
-        const allowVtxChangeWhileArmed = ref(false);
+        const saveButtonDisabled = computed(
+            () => vtxConfigSaveDisabled.value && !vtxPortChanged.value && !allowVtxDirty.value,
+        );
 
         const lowPowerDisarmOptions = computed(() => [
             { value: 0, label: t("vtxLowPowerDisarmOption_0") },
@@ -611,7 +626,7 @@ export default defineComponent({
         onBeforeUnmount(() => { alive = false; });
 
         const mainVtxDirty = computed(
-            () => !vtxConfigSaveDisabled.value || vtxPortChanged.value,
+            () => !vtxConfigSaveDisabled.value || vtxPortChanged.value || allowVtxDirty.value,
         );
 
         async function drainStatus(): Promise<void> {
@@ -620,9 +635,13 @@ export default defineComponent({
 
         function pollVtxStatus() {
             if (
-                !alive || !rulesTabReady.value || !connection.connectionValid ||
+                !alive || !connection.connectionValid ||
                 connection.cliActive || rulesBusy.value || isSaving.value || statusInFlight
             ) return;
+
+            if (!allowVtxLoaded.value) {
+                void loadAllowVtxChange(); // после reboot: синхронизируем тумблер с FC
+            }
 
             const request = updateDeviceStatus();
             statusInFlight = request;
@@ -669,16 +688,21 @@ export default defineComponent({
             await loadOsdPort();
             if (!alive) return;
 
+            await loadAllowVtxChange(); // состояние тумблера = текущее значение настройки
+            if (!alive) return;
+
             rulesTabReady.value = true;
             addInterval("vtx_device_status_pull", pollVtxStatus, 1000);
             i18n.localizePage();
         });
+
 
         const handleSave = () => {
             if (
                 !rulesTabReady.value || !connection.connectionValid || connection.cliActive ||
                 rulesBusy.value || isSaving.value || importBusy.value || recoveryRequired.value
             ) return;
+
 
             return runSave(async () => {
                 await drainStatus();
@@ -687,6 +711,9 @@ export default defineComponent({
                 await loadVtxConfig();
                 await loadVtxPort();
                 await loadOsdPort();
+                // save перезапустил FC — новое значение после переподключения
+                allowVtxLoaded.value = false;
+                markAllowVtxSaved();
             });
         };
 
@@ -840,6 +867,8 @@ export default defineComponent({
             vtxTypeString,
             saveButtonDisabled,
             isSaving,
+            allowVtxChangeWhileArmed,
+            allowVtxLoaded,
 
             // Computed
             vtxSupported,
@@ -865,6 +894,7 @@ export default defineComponent({
             saveLuaFile,
             loadJsonFile,
             loadClipboardJson,
+            onAllowVtxChange,
 
             // Table count setters
             setTableBands,
