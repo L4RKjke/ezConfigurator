@@ -81,6 +81,7 @@
             items: [
                 { title: "Снятие защиты с дрона как отдельный режим" },
                 { title: "Добавление каталога передатчиков во вкладку «Видеопередатчик»" },
+                { title: "Защита от РЭБ: условия для дизарма»" }
             ],
         },
         {
@@ -88,7 +89,7 @@
             title: "TODO",
             items: [
                 {
-                    title: "Добавить тумблеры в UI для редактирования",
+                    title: "Добавить тумблер в UI для редактирования",
                     subsections: [
                         {
                             title: "Переключение каналов во время арма",
@@ -96,14 +97,7 @@
                                 "set vtx_allow_vtx_changes_while_armed=OFF",
                                 "set vtx_allow_vtx_changes_while_armed=ON",
                             ].join("\n"),
-                        },
-                        {
-                            title: "Бесконечный failsafe",
-                            code: [
-                                "set failsafe_stage2_disabled=0",
-                                "set failsafe_stage2_disabled=1",
-                            ].join("\n"),
-                        },
+                        }
                     ],
                 },
             ],
