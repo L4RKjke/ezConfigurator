@@ -82,7 +82,7 @@
                                 class="w-20"
                             />
                         </SettingRow>
-                        
+
                         <!-- Low power disarm -->
                         <SettingRow :label="$t('vtxLowPowerDisarm')" :help="$t('vtxLowPowerDisarmHelp')">
                             <USelect
@@ -91,8 +91,13 @@
                                 class="w-36"
                             />
                         </SettingRow>
-                        <!-- Allow VTX change while armed -->
-                        <SettingRow :label="$t('vtxAllowChangeWhileArmed')" :help="$t('vtxAllowChangeWhileArmedHelp')">
+
+                        <!-- Allow VTX change while armed (только если прошивка знает настройку) -->
+                        <SettingRow
+                            v-if="allowVtxSupported"
+                            :label="$t('vtxAllowChangeWhileArmed')"
+                            :help="$t('vtxAllowChangeWhileArmedHelp')"
+                        >
                             <USwitch
                                 :model-value="allowVtxChangeWhileArmed"
                                 size="xs"
@@ -466,6 +471,7 @@ export default defineComponent({
 
         const {
             allowVtxChangeWhileArmed,
+            allowVtxSupported,
             allowVtxDirty,
             allowVtxLoaded,
             load: loadAllowVtxChange,
@@ -616,7 +622,7 @@ export default defineComponent({
                 },
             ],
         ]);
-        
+
         const connection = useConnectionStore();
         const rulesTabReady = ref(false);
         const importBusy = ref(false);
@@ -640,7 +646,7 @@ export default defineComponent({
             ) return;
 
             if (!allowVtxLoaded.value) {
-                void loadAllowVtxChange(); // после reboot: синхронизируем тумблер с FC
+                void loadAllowVtxChange(); // после reconnect/reboot: синхронизируем тумблер с FC
             }
 
             const request = updateDeviceStatus();
@@ -651,7 +657,6 @@ export default defineComponent({
                 if (statusInFlight === request) statusInFlight = null;
             });
         }
-
         function ruleChannelsFor(band: number) {
             if (!vtxConfig.vtx_table_available) {
                 return Array.from({ length: MAX_BAND_CHANNELS_VALUES }, (_, i) => ({
@@ -688,7 +693,7 @@ export default defineComponent({
             await loadOsdPort();
             if (!alive) return;
 
-            await loadAllowVtxChange(); // состояние тумблера = текущее значение настройки
+            await loadAllowVtxChange(); // состояние тумблера = текущее значение настройки на FC
             if (!alive) return;
 
             rulesTabReady.value = true;
@@ -711,8 +716,8 @@ export default defineComponent({
                 await loadVtxConfig();
                 await loadVtxPort();
                 await loadOsdPort();
-                // save перезапустил FC — новое значение после переподключения
-                allowVtxLoaded.value = false;
+                // save перезапускает FC. Значение тумблера перечитается
+                // после переподключения (см. watch в useVtxAllowChange).
                 markAllowVtxSaved();
             });
         };
@@ -763,7 +768,6 @@ export default defineComponent({
                 };
             }
         }
-
         function ensureBandFrequencies(bandIdx: number, channelCount: number) {
             const freqs = bandList[bandIdx - 1].vtxtable_band_frequencies;
             while (freqs.length < channelCount) {
@@ -853,6 +857,8 @@ export default defineComponent({
             vtxPortAvailable,
             vtxPortWritable,
             allowVtxChangeWhileArmed,
+            allowVtxSupported,
+            allowVtxLoaded,
             vtxPortOptions,
             vtxPortIdentifier,
             vtxProtocol,
@@ -867,8 +873,6 @@ export default defineComponent({
             vtxTypeString,
             saveButtonDisabled,
             isSaving,
-            allowVtxChangeWhileArmed,
-            allowVtxLoaded,
 
             // Computed
             vtxSupported,
