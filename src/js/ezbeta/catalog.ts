@@ -13,12 +13,13 @@ export interface EzBetaOption {
     conflicts?: string[];
 }
 
+export const EZBETA_CONFIG_VERSION = 2;
 export const EZBETA_OSD_NAMES = ["OSD_SD", "OSD_HD", "FRSKYOSD"] as const;
 export const EZBETA_ENABLE_RE = /^ENABLE_[A-Z0-9_]+(=[A-Za-z0-9_.-]{1,64})?$/;
 
 export const EZBETA_CATALOG: EzBetaOption[] = [
     // ---- radio ----
-    { name: "CRSF", group: "radio", flags: ["USE_SERIALRX_CRSF", "USE_TELEMETRY_CRSF", "USE_TELEMETRY", "USE_SERIALRX"], default: true, introduced: "< 2025.12" },
+    { name: "CRSF", group: "radio", flags: ["USE_SERIALRX_CRSF", "USE_TELEMETRY_CRSF", "USE_TELEMETRY", "USE_SERIALRX"], default: false, introduced: "< 2025.12" },
     { name: "FPORT", group: "radio", flags: ["USE_SERIALRX_FPORT", "USE_TELEMETRY_SMARTPORT", "USE_TELEMETRY", "USE_SERIALRX"], default: false },
     { name: "GHOST", group: "radio", flags: ["USE_SERIALRX_GHST", "USE_TELEMETRY_GHST", "USE_TELEMETRY", "USE_SERIALRX"], default: false },
     { name: "IBUS", group: "radio", flags: ["USE_SERIALRX_IBUS", "USE_SERIALRX"], default: false },
@@ -43,32 +44,32 @@ export const EZBETA_CATALOG: EzBetaOption[] = [
 
     // ---- motor ----
     { name: "BRUSHED", group: "motor", flags: ["USE_BRUSHED"], default: false },
-    { name: "DSHOT", group: "motor", flags: ["USE_DSHOT"], default: true },
+    { name: "DSHOT", group: "motor", flags: ["USE_DSHOT"], default: false },
     { name: "MULTISHOT", group: "motor", flags: ["USE_MULTISHOT"], default: false },
     { name: "ONESHOT", group: "motor", flags: ["USE_ONESHOT"], default: false },
     { name: "PROSHOT", group: "motor", flags: ["USE_PROSHOT"], default: false },
     { name: "PWM", group: "motor", flags: ["USE_PWM_OUTPUT"], default: false },
 
     // ---- other ----
-    { name: "ACRO_TRAINER", group: "other", flags: ["USE_ACRO_TRAINER"], default: true },
+    { name: "ACRO_TRAINER", group: "other", flags: ["USE_ACRO_TRAINER"], default: false },
     { name: "AKK_SMARTAUDIO", group: "other", flags: ["USE_AKK_SMARTAUDIO"], default: false },
     { name: "ALTITUDE_HOLD", group: "other", flags: ["USE_ALTITUDE_HOLD"], default: false, requires: "GPS или BARO", introduced: "2025.12" },
     { name: "BATTERY_CONTINUE", group: "other", flags: ["USE_BATTERY_CONTINUE"], default: false, introduced: "2026.6" },
-    { name: "GPS", group: "other", flags: ["USE_GPS", "USE_GPS_PLUS_CODES"], default: true },
-    { name: "LED_STRIP", group: "other", flags: ["USE_LED_STRIP"], default: true },
+    { name: "GPS", group: "other", flags: ["USE_GPS", "USE_GPS_PLUS_CODES"], default: false },
+    { name: "LED_STRIP", group: "other", flags: ["USE_LED_STRIP"], default: false },
     { name: "LED_STRIP_64", group: "other", flags: ["USE_LED_STRIP_64", "USE_LED_STRIP"], default: false },
     { name: "MAG", group: "other", flags: ["USE_MAGNETOMETER"], default: false },
-    { name: "OPTICALFLOW", group: "other", flags: ["USE_OPTICALFLOW"], default: true, introduced: "2025.12" },
-    { name: "OSD_SD", group: "other", flags: ["USE_OSD_SD", "USE_OSD"], default: true, conflicts: ["OSD_HD"] },
+    { name: "OPTICALFLOW", group: "other", flags: ["USE_OPTICALFLOW"], default: false, introduced: "2025.12" },
+    { name: "OSD_SD", group: "other", flags: ["USE_OSD_SD", "USE_OSD"], default: false, conflicts: ["OSD_HD"] },
     { name: "OSD_HD", group: "other", flags: ["USE_OSD_HD"], default: false, conflicts: ["OSD_SD"] },
     { name: "FRSKYOSD", group: "other", flags: ["USE_FRSKYOSD", "USE_OSD"], default: false },
-    { name: "PINIO", group: "other", flags: ["USE_PINIO"], default: true },
+    { name: "PINIO", group: "other", flags: ["USE_PINIO"], default: false },
     { name: "POSITION_HOLD", group: "other", flags: ["USE_POSITION_HOLD"], default: false, requires: "GPS или OPTICALFLOW", introduced: "2025.12" },
     { name: "RACE_PRO", group: "other", flags: ["USE_RACE_PRO", "USE_RPM_LIMIT", "USE_OSD_QUICK_MENU", "USE_RC_STATS", "USE_SPEC_PREARM_SCREEN"], default: false },
-    { name: "RANGEFINDER", group: "other", flags: ["USE_RANGEFINDER"], default: true },
+    { name: "RANGEFINDER", group: "other", flags: ["USE_RANGEFINDER"], default: false },
     { name: "SOFTSERIAL", group: "other", flags: ["USE_SOFTSERIAL"], default: false },
     { name: "SERVOS", group: "other", flags: ["USE_SERVOS"], default: false },
-    { name: "VTX", group: "other", flags: ["USE_VTX"], default: true },
+    { name: "VTX", group: "other", flags: ["USE_VTX"], default: false },
 
     // ---- expert (other) ----
     { name: "BLACKBOX", group: "other", expert: true, flags: ["USE_BLACKBOX"], default: false },
@@ -131,7 +132,7 @@ export function collectEzBetaOptions(input: {
     return list;
 }
 
-/** Группы, в которых допускается только одна опция (совпадает с build_options.json). */
+/** Группы, в которых допускается только одна опция (совпадает с build_config.json). */
 export const EZBETA_SINGLE_CHOICE_GROUPS = ["radio", "telemetry", "motor"] as const;
 
 /**
