@@ -1,134 +1,183 @@
 <template>
     <BaseTab tab-name="landing">
-        <section class="kanban" lang="ru">
-            <h1>Дорожная карта ezConfigurator</h1>
+        <section class="features" lang="ru">
+            <h1>Преимущества ezConfigurator</h1>
 
-            <div class="columns">
-                <div
-                    v-for="column in columns"
-                    :key="column.key"
-                    class="column"
-                    :class="`column-${column.key}`"
-                >
-                    <header class="column-header">
-                        <h2>{{ column.title }}</h2>
-                        <span class="count">{{ column.items.length }}</span>
-                    </header>
+            <div v-for="section in sections" :key="section.key" class="group">
+                <h2 class="group-title">{{ section.title }}</h2>
 
-                    <ul class="cards">
-                        <li
-                            v-for="(card, index) in column.items"
-                            :key="index"
-                            class="card"
+                <ul class="feature-list">
+                    <li
+                        v-for="(item, index) in section.items"
+                        :key="index"
+                        class="feature"
+                        :class="{ 'is-open': isOpen(section.key, index) }"
+                    >
+                        <button
+                            type="button"
+                            class="feature-toggle"
+                            :aria-expanded="isOpen(section.key, index)"
+                            :aria-controls="panelId(section.key, index)"
+                            @click="toggle(section.key, index)"
                         >
-                            <div class="card-index">{{ index + 1 }}</div>
+                            <span class="feature-index">{{ index + 1 }}</span>
+                            <span class="feature-title">{{ item.title }}</span>
+                            <span class="chevron" aria-hidden="true">▾</span>
+                        </button>
 
-                            <div class="card-body">
-                                <p v-if="card.title" class="card-title">
-                                    {{ card.title }}
-                                </p>
+                        <div
+                            v-if="isOpen(section.key, index)"
+                            :id="panelId(section.key, index)"
+                            class="feature-panel"
+                        >
+                            <p
+                                v-for="(paragraph, pIndex) in item.description"
+                                :key="pIndex"
+                                class="feature-text"
+                            >
+                                {{ paragraph }}
+                            </p>
 
-                                <template v-if="card.subsections">
-                                    <div
-                                        v-for="(sub, subIndex) in card.subsections"
-                                        :key="subIndex"
-                                        class="subsection"
-                                    >
-                                        <p class="subsection-title">{{ sub.title }}</p>
-                                        <pre v-if="sub.code" class="code"><code>{{ sub.code }}</code></pre>
-                                    </div>
-                                </template>
-
-                                <pre v-else-if="card.code" class="code"><code>{{ card.code }}</code></pre>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
+                            <pre v-if="item.code" class="code"><code>{{ item.code }}</code></pre>
+                        </div>
+                    </li>
+                </ul>
             </div>
         </section>
     </BaseTab>
 </template>
 
 <script setup lang="ts">
+    import { reactive } from "vue";
     import BaseTab from "./BaseTab.vue";
 
-    type CardSection = {
+    type Feature = {
         title: string;
+        description: string[];
         code?: string;
     };
 
-    type Card = {
-        title?: string;
-        code?: string;
-        subsections?: CardSection[];
-    };
-
-    type Column = {
+    type Section = {
         key: string;
         title: string;
-        items: Card[];
+        items: Feature[];
     };
 
     // ============================================================================
-    // Содержимое колонок. Редактируйте только этот блок.
-    // key: "backlog" | "todo" | "done" — влияет на цвет номера и бейджа.
-    // В карточке допустимо: title, code, subsections[{title, code}].
+    // Содержимое блоков. Редактируйте только этот блок.
+    // description — массив абзацев, code — необязательный блок CLI-команд.
     // ============================================================================
-    const columns: Column[] = [
+    const sections: Section[] = [
         {
-            key: "backlog",
-            title: "Backlog",
-            items: [
-                { title: "Снятие защиты с дрона как отдельный режим" },
-                { title: "Добавление каталога передатчиков во вкладку «Видеопередатчик»" },
-                { title: "Защита от РЭБ: условия для дизарма»" }
-            ],
-        },
-        {
-            key: "todo",
-            title: "TODO",
+            key: "firmware",
+            title: "Прошивка",
             items: [
                 {
-                    title: "Добавить тумблер в UI для редактирования",
-                    subsections: [
-                        {
-                            title: "Переключение каналов во время арма",
-                            code: [
-                                "set vtx_allow_vtx_changes_while_armed=OFF",
-                                "set vtx_allow_vtx_changes_while_armed=ON",
-                            ].join("\n"),
-                        }
+                    title: "Лимит VTX-правил увеличен с 10 до 40",
+                    description: [
+                        "Прошивка Betaflight устанавливает максимальный лимит VTX-правил — 10.",
+                        "Прошивка ezBeta увеличивает этот лимит до 40.",
                     ],
                 },
-            ],
-        },
-        {
-            key: "done",
-            title: "Done",
-            items: [
-                { title: "Программатор для кастомных прошивок" },
-                { title: "Настройка правил в видеопередатчике" },
-                { title: "Кол-во VTX rules: 10 → 40" },
-                { title: "Кол-во бендов для сетки: 8 → 20" },
+                {
+                    title: "Количество бендов для сетки увеличено с 8 до 20",
+                    description: [
+                        "20 бендов вместо 8 — расширенная сетка частот.",
+                        "Больше бендов означает больше доступных каналов для выбора при работе с видеопередатчиком.",
+                    ],
+                },
                 {
                     title: "Переключение каналов во время арма",
+                    description: [
+                        "Позволяет менять канал видеопередатчика, когда дрон армирован.",
+                        "По умолчанию поведение соответствует штатной прошивке.",
+                    ],
                     code: [
-                        "get vtx_allow_vtx_changes_while_armed",
-                        "set vtx_allow_vtx_changes_while_armed=OFF",
-                        "set vtx_allow_vtx_changes_while_armed=ON",
+                        "get vtx_allow_vtx_changes_while_armed - текущий статус",
+                        "set vtx_allow_vtx_changes_while_armed=OFF - поведение как в штатной прошивке (по умолчанию)",
+                        "set vtx_allow_vtx_changes_while_armed=ON - переключение каналов в арме",
                     ].join("\n"),
                 },
                 {
                     title: "Бесконечный failsafe",
+                    description: [
+                        "Позволяет удерживать первый этап failsafe без перехода во второй.",
+                        "По умолчанию поведение соответствует штатной прошивке.",
+                    ],
                     code: [
-                        "set failsafe_stage2_disabled",
-                        "set failsafe_stage2_disabled=0",
-                        "set failsafe_stage2_disabled=1",
+                        "set failsafe_stage2_disabled=0 - поведение как в штатной прошивке (по умолчанию)",
+                        "set failsafe_stage2_disabled=1 - бесконечный 1 этап, перехода во 2 этап не будет",
+                    ].join("\n"),
+                },
+                {
+                    title: "Защита от РЭБ: дизарм только при выполнении условий",
+                    description: [
+                        "Защищает от случайного или вынужденного дизарма, например при помехах от РЭБ.",
+                        "Когда функция включена, дизарм возможен только при выполнении заданных условий: положения стиков, уровня газа и высоты.",
+                        "disarm_guard_throttle задаёт уровень газа в процентах, при котором дизарм разрешён.",
+                        "disarm_guard_alt_m задаёт порог высоты в метрах. Если значение равно 0, дизарм зависит только от положения стиков.",
+                    ],
+                    code: [
+                        "get disarm_guard - текущий статус",
+                        "get disarm_guard_alt_m - порог высоты, м",
+                        "get disarm_guard_throttle - порог газа, %",
+                        "set disarm_guard=OFF - поведение как в штатной прошивке (по умолчанию)",
+                        "set disarm_guard=ON - дизарм только при выполнении условий",
+                        "set disarm_guard_alt_m=3 - порог высоты 3 м (при 0 дизарм зависит только от стиков)",
+                        "set disarm_guard_throttle=3 - уровень газа 3 %",
                     ].join("\n"),
                 },
             ],
         },
+        {
+            key: "configurator",
+            title: "Конфигуратор",
+            items: [
+                {
+                    title: "Полная русская локализация интерфейса",
+                    description: [
+                        "Весь интерфейс конфигуратора переведён на русский язык: меню, вкладки, подсказки и сообщения.",
+                    ],
+                },
+                {
+                    title: "Настройка VTX-правил во вкладке видеопередатчика",
+                    description: [
+                        "VTX-правила настраиваются прямо во вкладке видеопередатчика, без ручного ввода CLI-команд.",
+                        "Доступно до 40 правил, что соответствует лимиту прошивки ezBeta.",
+                    ],
+                },
+                {
+                    title: "Работа с обычными прошивками и прошивками TBF",
+                    description: [
+                        "Конфигуратор работает как с обычными прошивками Betaflight, так и с прошивками TBF.",
+                        "Не нужно переключать программу или менять настройки при смене прошивки.",
+                    ],
+                },
+            ],
+        },
     ];
+
+    // ============================================================================
+    // Состояние раскрытия панелей
+    // ============================================================================
+    const openState = reactive<Record<string, boolean>>({});
+
+    function stateKey(sectionKey: string, index: number): string {
+        return sectionKey + "-" + index;
+    }
+
+    function isOpen(sectionKey: string, index: number): boolean {
+        return !!openState[stateKey(sectionKey, index)];
+    }
+
+    function toggle(sectionKey: string, index: number): void {
+        const key = stateKey(sectionKey, index);
+        openState[key] = !openState[key];
+    }
+
+    function panelId(sectionKey: string, index: number): string {
+        return "feature-panel-" + stateKey(sectionKey, index);
+    }
 </script>
 
 <style scoped>
@@ -137,8 +186,8 @@
     background: transparent;
 }
 
-.kanban {
-    max-width: 1100px;
+.features {
+    max-width: 900px;
     margin: 2rem auto;
     padding: clamp(16px, 3vw, 32px);
     color: var(--text, #1f2937);
@@ -147,14 +196,14 @@
     line-height: 1.5;
 }
 
-.kanban h1 {
+.features h1 {
     margin: 0 0 1.5rem;
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1.25;
 }
 
-.kanban h1::after {
+.features h1::after {
     content: "";
     display: block;
     width: 3rem;
@@ -164,32 +213,12 @@
     background: linear-gradient(90deg, var(--primary-500, #3b82f6), var(--orb-live-mid, #6366f1));
 }
 
-.columns {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    align-items: start;
+.group {
+    margin-bottom: 1.75rem;
 }
 
-.column {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.02);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.column-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 4px 2px;
-}
-
-.column-header h2 {
-    margin: 0;
+.group-title {
+    margin: 0 0 0.75rem;
     font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -197,24 +226,7 @@
     color: var(--text-secondary, #4b5563);
 }
 
-.count {
-    display: inline-grid;
-    place-items: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 11px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--text-secondary, #4b5563);
-}
-
-.column-backlog .count { background: #e5e7eb; color: #374151; }
-.column-todo .count    { background: #fef3c7; color: #92400e; }
-.column-done .count    { background: #d1fae5; color: #065f46; }
-
-.cards {
+.feature-list {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -223,16 +235,37 @@
     gap: 8px;
 }
 
-.card {
-    display: flex;
-    gap: 10px;
-    padding: 10px 12px;
+.feature {
     border-radius: 8px;
     background: var(--surface, #ffffff);
     border: 1px solid rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
-.card-index {
+.feature.is-open {
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+.feature-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.feature-toggle:focus-visible {
+    outline: 2px solid var(--primary-500, #3b82f6);
+    outline-offset: -2px;
+}
+
+.feature-index {
     flex: 0 0 22px;
     width: 22px;
     height: 22px;
@@ -245,37 +278,38 @@
     color: var(--text-secondary, #6b7280);
 }
 
-.column-todo .card-index { background: #fef3c7; color: #92400e; }
-.column-done .card-index { background: #d1fae5; color: #065f46; }
-
-.card-body {
+.feature-title {
     flex: 1 1 auto;
     min-width: 0;
-}
-
-.card-title {
-    margin: 0;
     font-weight: 500;
     color: var(--text, #1f2937);
 }
 
-.subsection {
-    margin-top: 8px;
+.chevron {
+    flex: 0 0 auto;
+    color: var(--text-secondary, #6b7280);
+    transition: transform 0.2s ease;
 }
 
-.subsection:first-child {
-    margin-top: 0;
+.feature.is-open .chevron {
+    transform: rotate(180deg);
 }
 
-.subsection-title {
-    margin: 0 0 4px;
-    font-size: 0.78rem;
-    font-weight: 600;
+.feature-panel {
+    padding: 0 12px 12px 44px;
+}
+
+.feature-text {
+    margin: 0 0 6px;
     color: var(--text-secondary, #4b5563);
 }
 
+.feature-text:last-child {
+    margin-bottom: 0;
+}
+
 .code {
-    margin: 6px 0 0;
+    margin: 8px 0 0;
     padding: 8px 10px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.04);
@@ -294,47 +328,33 @@
     color: inherit;
 }
 
-@media (max-width: 900px) {
-    .columns {
-        grid-template-columns: 1fr;
-    }
-}
-
 @media (prefers-color-scheme: dark) {
-    .kanban {
+    .features {
         color: var(--text, #f9fafb);
     }
 
-    .column {
-        background: rgba(255, 255, 255, 0.02);
-        border-color: rgba(255, 255, 255, 0.06);
-    }
-
-    .column-header h2,
-    .subsection-title,
-    .card-index,
-    .count {
+    .group-title,
+    .feature-index,
+    .chevron,
+    .feature-text {
         color: var(--text-secondary, #9ca3af);
     }
 
-    .card {
+    .feature {
         background: var(--surface, #1f2937);
         border-color: rgba(255, 255, 255, 0.08);
     }
 
-    .card-index {
+    .feature.is-open {
+        border-color: rgba(96, 165, 250, 0.45);
+    }
+
+    .feature-index {
         background: rgba(255, 255, 255, 0.06);
     }
 
     .code {
         background: rgba(255, 255, 255, 0.06);
     }
-
-    .column-backlog .count { background: #374151; color: #d1d5db; }
-    .column-todo .count    { background: #78350f; color: #fef3c7; }
-    .column-done .count    { background: #064e3b; color: #d1fae5; }
-
-    .column-todo .card-index { background: #78350f; color: #fef3c7; }
-    .column-done .card-index { background: #064e3b; color: #d1fae5; }
 }
 </style>
