@@ -155,6 +155,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import {
+    collectEzBetaOptions,
     EZBETA_OSD_NAMES,
     EZBETA_RADIO_TELEMETRY_MAP,
     ezBetaGroupOptions,
