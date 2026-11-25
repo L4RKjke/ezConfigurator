@@ -1,6 +1,10 @@
 <template>
     <BaseTab tab-name="landing">
         <section class="features" lang="ru">
+            <p class="intro-text">
+                <strong>ezConfigurator</strong> — форк программы <strong>Betaflight Configurator</strong>.
+                Полностью повторяет функционал Betaflight Configurator, но добавляет новые возможности.
+            </p>
             <h1>Преимущества ezConfigurator</h1>
 
             <div v-for="section in sections" :key="section.key" class="group">
@@ -196,6 +200,23 @@
     line-height: 1.5;
 }
 
+/* ---------- Интро-блок ---------- */
+.intro-text {
+    margin: 0 0 1.75rem;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--surface-muted, rgba(0, 0, 0, 0.04));
+    border-left: 3px solid var(--primary-500, #3b82f6);
+    color: var(--text, #1f2937);
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.intro-text strong {
+    font-weight: 600;
+}
+
+/* ---------- Заголовки ---------- */
 .features h1 {
     margin: 0 0 1.5rem;
     font-size: 1.5rem;
@@ -226,6 +247,7 @@
     color: var(--text-secondary, #4b5563);
 }
 
+/* ---------- Список фич ---------- */
 .feature-list {
     list-style: none;
     margin: 0;
@@ -328,33 +350,54 @@
     color: inherit;
 }
 
-@media (prefers-color-scheme: dark) {
-    .features {
-        color: var(--text, #f9fafb);
-    }
+/* ============================================================
+   Тёмная тема — по классу/атрибуту, а не по media-запросу.
+   Поддержаны оба популярных варианта:
+     • .dark        — @nuxtjs/color-mode / Nuxt UI (по умолчанию)
+     • [data-theme="dark"] — альтернативные обёртки
+   ============================================================ */
+:global(.dark) .features,
+:global([data-theme="dark"]) .features {
+    color: var(--text, #f9fafb);
+}
 
-    .group-title,
-    .feature-index,
-    .chevron,
-    .feature-text {
-        color: var(--text-secondary, #9ca3af);
-    }
+:global(.dark) .intro-text,
+:global([data-theme="dark"]) .intro-text {
+    background: var(--surface-muted, rgba(255, 255, 255, 0.05));
+    border-left-color: var(--primary-500, #60a5fa);
+    color: var(--text, #f9fafb);
+}
 
-    .feature {
-        background: var(--surface, #1f2937);
-        border-color: rgba(255, 255, 255, 0.08);
-    }
+:global(.dark) .group-title,
+:global(.dark) .feature-index,
+:global(.dark) .chevron,
+:global(.dark) .feature-text,
+:global([data-theme="dark"]) .group-title,
+:global([data-theme="dark"]) .feature-index,
+:global([data-theme="dark"]) .chevron,
+:global([data-theme="dark"]) .feature-text {
+    color: var(--text-secondary, #9ca3af);
+}
 
-    .feature.is-open {
-        border-color: rgba(96, 165, 250, 0.45);
-    }
+:global(.dark) .feature,
+:global([data-theme="dark"]) .feature {
+    background: var(--surface, #1f2937);
+    border-color: rgba(255, 255, 255, 0.08);
+}
 
-    .feature-index {
-        background: rgba(255, 255, 255, 0.06);
-    }
+:global(.dark) .feature.is-open,
+:global([data-theme="dark"]) .feature.is-open {
+    border-color: rgba(96, 165, 250, 0.45);
+}
 
-    .code {
-        background: rgba(255, 255, 255, 0.06);
-    }
+:global(.dark) .feature-index,
+:global([data-theme="dark"]) .feature-index {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+:global(.dark) .code,
+:global([data-theme="dark"]) .code {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text, #f9fafb);
 }
 </style>
