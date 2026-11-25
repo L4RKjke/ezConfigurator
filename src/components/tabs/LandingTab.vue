@@ -191,8 +191,9 @@
 }
 
 .features {
-    max-width: 900px;
-    margin: 2rem auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     padding: clamp(16px, 3vw, 32px);
     color: var(--text, #1f2937);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
