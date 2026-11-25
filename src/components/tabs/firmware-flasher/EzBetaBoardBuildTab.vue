@@ -207,7 +207,7 @@ const telemetryOptions = computed(() => {
         ? ezBetaGroupOptions("telemetry").filter((o) => allowed.includes(o.name))
         : ezBetaGroupOptions("telemetry"); // fallback для будущих радио
     return [
-        { label: "Не выбрано", value: "" },
+        { label: "Не выбрано", value: null },
         ...compatible.map(toOption),
     ];
 });
