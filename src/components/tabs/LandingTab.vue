@@ -351,21 +351,27 @@
 }
 
 /* ============================================================
-   Тёмная тема — по классу/атрибуту, а не по media-запросу.
-   Поддержаны оба популярных варианта:
-     • .dark        — @nuxtjs/color-mode / Nuxt UI (по умолчанию)
-     • [data-theme="dark"] — альтернативные обёртки
+   Тёмная тема — переопределяем CSS-переменные в области
+   компонента, чтобы все дочерние правила (background/color
+   через var(...)) автоматически получили тёмные значения.
+   Это надёжнее, чем полагаться на fallback в var():
+   var(--surface, #1f2937) вернёт СВЕТЛОЕ значение, если
+   --surface уже задана приложением в светлой теме.
    ============================================================ */
 :global(.dark) .features,
 :global([data-theme="dark"]) .features {
-    color: var(--text, #f9fafb);
+    --text: #f9fafb;
+    --text-secondary: #9ca3af;
+    --surface: #1f2937;
+    --surface-muted: rgba(255, 255, 255, 0.05);
+    --primary-500: #60a5fa;
 }
 
 :global(.dark) .intro-text,
 :global([data-theme="dark"]) .intro-text {
-    background: var(--surface-muted, rgba(255, 255, 255, 0.05));
-    border-left-color: var(--primary-500, #60a5fa);
-    color: var(--text, #f9fafb);
+    background: var(--surface-muted);
+    border-left-color: var(--primary-500);
+    color: var(--text);
 }
 
 :global(.dark) .group-title,
@@ -376,12 +382,12 @@
 :global([data-theme="dark"]) .feature-index,
 :global([data-theme="dark"]) .chevron,
 :global([data-theme="dark"]) .feature-text {
-    color: var(--text-secondary, #9ca3af);
+    color: var(--text-secondary);
 }
 
 :global(.dark) .feature,
 :global([data-theme="dark"]) .feature {
-    background: var(--surface, #1f2937);
+    background: var(--surface);
     border-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -398,6 +404,6 @@
 :global(.dark) .code,
 :global([data-theme="dark"]) .code {
     background: rgba(255, 255, 255, 0.06);
-    color: var(--text, #f9fafb);
+    color: var(--text);
 }
 </style>
