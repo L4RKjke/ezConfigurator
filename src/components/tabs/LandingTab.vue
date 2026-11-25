@@ -3,7 +3,7 @@
         <section class="features" lang="ru">
             <p class="intro-text">
                 <strong>ezConfigurator</strong> — форк программы <strong>Betaflight Configurator</strong>.
-                Полностью повторяет функционал Betaflight Configurator, но добавляет новые возможности.
+                , который сохраняет весь привычный функционал оригинала и при этом расширяет его новыми возможностями.
             </p>
             <h1>Преимущества ezConfigurator</h1>
 
@@ -207,7 +207,6 @@
     padding: 12px 14px;
     border-radius: 8px;
     background: var(--surface-muted, rgba(0, 0, 0, 0.04));
-    border-left: 3px solid var(--primary-500, #3b82f6);
     color: var(--text, #1f2937);
     font-size: 0.95rem;
     line-height: 1.55;
@@ -228,7 +227,7 @@
 .features h1::after {
     content: "";
     display: block;
-    width: 3rem;
+    width: 100%;
     height: 2px;
     margin-top: 0.55rem;
     border-radius: 2px;
