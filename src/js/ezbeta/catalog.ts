@@ -97,6 +97,54 @@ export const ezBetaHintText = (o: EzBetaOption): string => {
     return parts.length ? ` (${parts.join(", ")})` : "";
 };
 
+/** Приёмники со встроенной телеметрией: отдельный слот не выделяется. */
+export const EZBETA_BUILTIN_TELEMETRY_RADIOS: ReadonlySet<string> = new Set([
+    "CRSF",      // USE_TELEMETRY_CRSF уже в флагах радио
+    "FPORT",     // SmartPort-телеметрия на той же линии
+    "GHOST",     // GHST-телеметрия встроена в приёмник
+    "JETIEXBUS", // Ex Bus-телеметрия на той же линии
+    "MAVLINK",   // MAVLINK-телеметрия на том же слоте
+    "SRXL2",     // двунаправленный протокол
+]);
+
+/** Приёмники без телеметрии вообще. */
+export const EZBETA_NO_TELEMETRY_RADIOS: ReadonlySet<string> = new Set([
+    "PPM",  // аналог, телеметрии не несёт
+    "XBUS", // XB-B без телеметрии
+]);
+
+/** Разрешённые внешние протоколы телеметрии для конкретного приёмника. */
+export const EZBETA_RADIO_TELEMETRY_MAP: Readonly<Record<string, readonly string[]>> = {
+    IBUS:     ["IBUS_EXTENDED"],
+    SBUS:     ["SMARTPORT", "FRSKY_HUB", "LTM", "MAVLINK_TELEM"],
+    SPEKTRUM: ["SRXL"],
+    SUMD:     ["HOTT"],
+    SUMH:     ["HOTT"],
+};
+
+export type EzBetaTelemetryMode = "no-radio" | "builtin" | "none" | "external";
+
+/**
+ * Режим телеметрии для выбранного приёмника.
+ *  - "no-radio" — ещё ничего не выбрано;
+ *  - "builtin"  — телеметрия встроена, отдельный слот не нужен;
+ *  - "none"     — телеметрии нет вообще;
+ *  - "external" — нужен внешний протокол из EZBETA_RADIO_TELEMETRY_MAP.
+ * Для радио, которого нет в маппинге (гипотетические будущие),
+ * откатываемся к старому поведению по флагу USE_TELEMETRY.
+ */
+export function getEzBetaTelemetryMode(radio: string): EzBetaTelemetryMode {
+    if (!radio) return "no-radio";
+    if (EZBETA_NO_TELEMETRY_RADIOS.has(radio)) return "none";
+    if (EZBETA_BUILTIN_TELEMETRY_RADIOS.has(radio)) return "builtin";
+    if (EZBETA_RADIO_TELEMETRY_MAP[radio]?.length) return "external";
+
+    // Fallback для радио, которого пока нет в маппинге.
+    const opt = EZBETA_CATALOG.find((o) => o.name === radio);
+    if (!opt) return "no-radio";
+    return opt.flags.includes("USE_TELEMETRY") ? "builtin" : "none";
+}
+
 /** Собирает опции для POST /build: имена каталога + ENABLE_*. Бросает при дубликате / невалидном ENABLE. */
 export function collectEzBetaOptions(input: {
     selectedRadio: string;

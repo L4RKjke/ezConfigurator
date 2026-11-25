@@ -156,10 +156,11 @@
 import { computed, watch } from "vue";
 import {
     EZBETA_OSD_NAMES,
-    collectEzBetaOptions,
+    EZBETA_RADIO_TELEMETRY_MAP,
     ezBetaGroupOptions,
     ezBetaHintText,
     findEzBetaOption,
+    getEzBetaTelemetryMode,
     type EzBetaOption,
 } from "@/js/ezbeta/catalog";
 import type { EzBetaState } from "./ezbetaState";
@@ -198,7 +199,17 @@ const boardOptions = computed(() => {
 
 const radioOptions = computed(() => ezBetaGroupOptions("radio").map(toOption));
 const motorOptions = computed(() => ezBetaGroupOptions("motor").map(toOption));
-const telemetryOptions = computed(() => ezBetaGroupOptions("telemetry").map(toOption));
+const telemetryMode = computed(() => getEzBetaTelemetryMode(props.state.selectedRadio));
+const telemetryOptions = computed(() => {
+    const allowed = EZBETA_RADIO_TELEMETRY_MAP[props.state.selectedRadio] ?? [];
+    const compatible = allowed.length
+        ? ezBetaGroupOptions("telemetry").filter((o) => allowed.includes(o.name))
+        : ezBetaGroupOptions("telemetry"); // fallback для будущих радио
+    return [
+        { label: "Не выбрано", value: "" },
+        ...compatible.map(toOption),
+    ];
+});
 const osdOptions = computed(() =>
     EZBETA_OSD_NAMES
         .map((n) => findEzBetaOption(n))
@@ -213,14 +224,19 @@ const otherOptions = computed(() =>
 );
 const expertOptions = computed(() => ezBetaGroupOptions("other", true).filter((o) => o.expert));
 
-const telemetrySupported = computed(() => {
-    const radio = findEzBetaOption(state.selectedRadio);
-    return !!radio && radio.flags.includes("USE_TELEMETRY");
-});
+const telemetrySupported = computed(() => telemetryMode.value === "external");
 
 const telemetryHint = computed(() => {
-    if (!state.selectedRadio) return "Сначала выберите приёмник";
-    return "Протокол не поддерживает телеметрию";
+    switch (telemetryMode.value) {
+        case "no-radio":
+            return "Сначала выберите протокол приёмника";
+        case "builtin":
+            return "Телеметрия встроена в протокол приёмника — отдельный слот не нужен";
+        case "none":
+            return "Выбранный протокол приёмника не поддерживает телеметрию";
+        default:
+            return "";
+    }
 });
 
 const optionsPreview = computed(() => {
@@ -254,7 +270,23 @@ function clearLog() {
     state.statusLog.splice(0, state.statusLog.length);
 }
 
-watch(telemetrySupported, (ok) => {
-    if (!ok) state.selectedTelemetry = null;
-});
+watch(
+    [() => props.state.selectedRadio, telemetryMode],
+    () => {
+        if (telemetryMode.value !== "external") {
+            // Встроенная / отсутствующая телеметрия — внешний слот не нужен.
+            props.state.selectedTelemetry = "";
+            return;
+        }
+        const allowed = EZBETA_RADIO_TELEMETRY_MAP[props.state.selectedRadio] ?? [];
+        if (
+            props.state.selectedTelemetry &&
+            allowed.length > 0 &&
+            !allowed.includes(props.state.selectedTelemetry)
+        ) {
+            props.state.selectedTelemetry = "";
+        }
+    },
+    { immediate: true },
+);
 </script>
