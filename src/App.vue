@@ -3,10 +3,7 @@
         <div class="app-wrapper">
             <div id="background" v-if="isMobileSidebarOpen" aria-hidden="true" @click="isRevealed = false"></div>
             <div id="side_menu_swipe"></div>
-            <div v-if="isLandingTab" class="mobile-topbar" :class="{ 'mobile-topbar--hidden': topbarHidden }">
-                <div class="mobile-topbar__logo" :title="logoTooltip" aria-hidden="true"></div>
-            </div>
-            <div id="tab-content-container" :class="{ 'has-mobile-topbar': isLandingTab }">
+            <div id="tab-content-container">
                 <div class="tab_container" :class="{ reveal: isMobileSidebarOpen }">
                     <Teleport to=".floating-connect" :disabled="!isCompactBreakpoint">
                         <ConnectButton />
@@ -14,7 +11,7 @@
                     <Sidebar />
                     <div class="clear-both"></div>
                 </div>
-                <div id="content" @scroll.passive="onContentScroll">
+                <div id="content">
                     <keep-alive :include="keptAliveTabs">
                         <component
                             :is="activeTabComponent"
@@ -57,7 +54,6 @@ import GlobalDialogs from "./components/dialogs/GlobalDialogs.vue";
 import LogPanel from "./components/log/LogPanel.vue";
 import Sidebar from "./components/sidebar/Sidebar.vue";
 import PortUsageModule from "./js/port_usage";
-import { i18n } from "./js/localization";
 import { useUiLocale } from "./composables/useUiLocale";
 import { useFlightControllerStore } from "./stores/fc";
 import { useConnectionStore } from "./stores/connection";
@@ -126,68 +122,7 @@ onKeyStroke("Escape", () => {
     if (isMobileSidebarOpen.value) {
         isRevealed.value = false;
     }
-});
-
-// Auto-close the drawer when leaving the mobile drawer breakpoint.
-watch(isCompactBreakpoint, (compact) => {
-    if (!compact) {
-        isRevealed.value = false;
-    }
-});
-
-// The branded top bar is a landing-page affordance; navigation is in the compact status bar.
-const isLandingTab = computed(() => vueTabState.activeTabName === "landing");
-
-const topbarHidden = ref(false);
-let lastScrollTop = 0;
-const scrollThreshold = 6;
-
-function onContentScroll(event: Event) {
-    const current = (event.target as HTMLElement).scrollTop;
-    if (current <= 0) {
-        topbarHidden.value = false;
-        lastScrollTop = 0;
-        return;
-    }
-    const diff = current - lastScrollTop;
-    if (diff > scrollThreshold) {
-        topbarHidden.value = true;
-        lastScrollTop = current;
-    } else if (diff < -scrollThreshold) {
-        topbarHidden.value = false;
-        lastScrollTop = current;
-    }
-}
-
-// Ensure the topbar is visible when the drawer opens.
-watch(isRevealed, (revealed) => {
-    if (revealed) {
-        topbarHidden.value = false;
-    }
-});
-
-// Scrolling any tab sets the hidden flag, and the landing page may be too short to
-// scroll it back, so entering the landing tab has to reset it itself.
-watch(isLandingTab, (isLanding) => {
-    if (isLanding) {
-        topbarHidden.value = false;
-        lastScrollTop = 0;
-    }
-});
-
-const logoTooltip = computed(() => {
-    const lines = [`${i18n.getMessage("versionLabelConfigurator")}: ${appInfo.displayVersion}`];
-    const cfg = fcStore.config ?? {};
-    if (cfg.flightControllerVersion && cfg.flightControllerIdentifier) {
-        lines.push(
-            `${i18n.getMessage("versionLabelFirmware")}: ${cfg.flightControllerVersion} ${cfg.flightControllerIdentifier}`,
-        );
-    }
-    if (cfg.hardwareName) {
-        lines.push(`${i18n.getMessage("versionLabelTarget")}: ${cfg.hardwareName}`);
-    }
-    return lines.join("\n");
-});
+}); 
 
 provide("toggleMobileSidebar", () => {
     isRevealed.value = !isRevealed.value;
@@ -256,28 +191,6 @@ watch(
     display: none;
 }
 
-/* Mobile top bar — the landing page's branding, auto-hides on scroll down.
-   The bar grows by the safe-area inset and pads its contents down by the same amount, so the
-   controls sit below the Android/iOS status bar with the content box unchanged. */
-.mobile-topbar {
-    display: none;
-    position: fixed;
-    top: 0;
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    z-index: 2001;
-    /* Explicit, not inherited from the Tailwind reset: the height below is an outer height, and
-       #content's matching padding-top depends on it staying one. */
-    box-sizing: border-box;
-    height: calc(3rem + var(--bf-inset-top));
-    padding: calc(0.25rem + var(--bf-inset-top)) 0.5rem 0.25rem;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: var(--surface-100);
-    border-bottom: 1px solid var(--surface-200);
-    box-shadow: var(--shadow-chrome-bar);
-    transition: transform 0.25s ease;
-}
 /* Compact only: a round, always-reachable account button over the content, matching the
    floating status bar at the other end of the screen. */
 .floating-connect {
@@ -310,32 +223,14 @@ watch(
     box-shadow: var(--shadow-chrome-floating);
 }
 
-.mobile-topbar--hidden {
-    transform: translateY(-100%);
-}
-.mobile-topbar__logo {
-    flex: 1;
-    min-width: 0;
-    height: 2.5rem;
-    background-image: url(./images/bf_logo_white.svg);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: auto 100%;
-}
-.dark .mobile-topbar__logo {
-    background-image: url(./images/bf_logo_black.svg);
-}
 @media all and (max-width: 575px), all and (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
-    .mobile-topbar {
-        display: flex;
-    }
     .floating-account,
     .floating-connect {
         display: block;
     }
     /* Reserve space for the floating controls at both ends of the content. */
     #content {
-        padding-top: calc(3rem + var(--bf-inset-top));
+        padding-top: var(--bf-inset-top);
         padding-bottom: calc(5.75rem + var(--bf-inset-bottom));
     }
 }
