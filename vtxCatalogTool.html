@@ -84,6 +84,7 @@
     <h2>Каталог</h2>
     <div class="row">
         <button id="btnPickDir">Открыть папку vtxCatalog</button>
+        <button id="btnResumeDir" class="soft" hidden></button>
         <span id="dirState" class="preview">папка не подключена</span>
     </div>
     <div id="entriesWrap" style="margin-top: 12px;"></div>
@@ -106,7 +107,7 @@
     <div class="row">
         <div>
             <label for="photoInput">Фото (не обязательно)</label>
-            <input type="file" id="photoInput" accept="image/*">
+            <input type="file" id="photoInput" accept="image/*,.webp">
         </div>
         <img id="photoPreview" alt="" hidden>
         <button id="btnClearPhoto" class="soft" hidden>Убрать фото</button>
@@ -124,105 +125,65 @@
 <script>
 "use strict";
 
-const FREQ_MAX = 5999;
+const FREQ_MAX = 8000;
 const POWER_MAX = 65535;
 
-// Слова-признаки типа полосы в строке vtxtable band:
-// FACTORY/F — заводская полоса, CUSTOM/C — не заводская (маркер просто отбрасывается).
 const FACTORY_WORDS = new Set(["F", "FACTORY"]);
 const NONFACTORY_WORDS = new Set(["C", "CUSTOM"]);
 const INT_RE = /^-?\d+$/;
 
-// ---------- Состояние ----------
-
-let dirHandle = null;      // FileSystemDirectoryHandle для vtxCatalog
-let entries = [];          // текущий каталог
-let photoFile = null;      // выбранный файл фото
+let dirHandle = null;
+let entries = [];
+let photoFile = null;
 let fsApiAvailable = "showDirectoryPicker" in window;
 
-// ---------- Разбор vtxtable ----------
-
-/**
- * Разбирает произвольный текст, оставляя только строки vtxtable, и собирает
- * объект по схеме Betaflight VTX Table. Всё лишнее (посторонние строки, set-,
- * save- и #-строки, префиксы вида "Betaflight/..." перед vtxtable) отбрасывается.
- * Ограничений на число полос, каналов и уровней мощности нет.
- * Бросает Error с понятным сообщением при ошибке разбора.
- */
 function parseVtxTableText(text) {
     const lines = text.split(/\r?\n/);
     let bandsCount = null;
     let channelsCount = null;
-    const bandMap = new Map(); // номер полосы -> {name, letter, freqs, factory}
+    const bandMap = new Map();
     let powerValues = null;
     let powerLabels = null;
-
-    // Невидимые символы (zero-width space, BOM и т.п.) затесываются при копировании
-    // и ломают разбор чисел — вычищаем их до токенизации.
     const ZERO_WIDTH_RE = /[\u200B-\u200D\u2060\uFEFF]/g;
 
     for (const raw of lines) {
         const line = raw.replace(ZERO_WIDTH_RE, "").trim();
         if (!line) continue;
         const tokens = line.split(/\s+/);
-        // Строка может начинаться мусором (промпт CLI, даты и т.п.) — ищем "vtxtable"
         const vtIdx = tokens.findIndex(t => t.toLowerCase() === "vtxtable");
-        if (vtIdx === -1) continue; // мусор отбрасываем
+        if (vtIdx === -1) continue;
         const rest = tokens.slice(vtIdx + 1);
         const sub = (rest[0] || "").toLowerCase();
 
         if (sub === "bands") {
             const n = parseInt(rest[1], 10);
-            if (!Number.isInteger(n) || n < 0) {
-                throw new Error(`Неверное число полос в строке "${line}"`);
-            }
+            if (!Number.isInteger(n) || n < 0) throw new Error(`Неверное число полос в строке "${line}"`);
             bandsCount = n;
         } else if (sub === "channels") {
             const n = parseInt(rest[1], 10);
-            if (!Number.isInteger(n) || n < 0) {
-                throw new Error(`Неверное число каналов в строке "${line}"`);
-            }
+            if (!Number.isInteger(n) || n < 0) throw new Error(`Неверное число каналов в строке "${line}"`);
             channelsCount = n;
         } else if (sub === "band") {
-            // vtxtable band <num> <name> <letter> <f1..fn> [<factory>]
-            // Формат терпим к порядку: частоты и слова разделяются по типу токена.
-            // Пример: "vtxtable band 1 BAND_A A CUSTOM 5865 5845 ... 5725"
-            // Пример: "vtxtable band 1 BOSCAM_A A 5865 ... 5725 1" (флаг в конце)
             const toks = rest.slice(1);
             const num = parseInt(toks[0], 10);
-            if (!Number.isInteger(num) || num < 1) {
-                throw new Error(`Неверный номер полосы в строке "${line}"`);
-            }
+            if (!Number.isInteger(num) || num < 1) throw new Error(`Неверный номер полосы в строке "${line}"`);
             let name = "";
             let letter = "";
             let factory = false;
             const freqs = [];
-
             for (let i = 1; i < toks.length; i++) {
                 const t = toks[i];
                 if (INT_RE.test(t)) {
                     const v = parseInt(t, 10);
-                    if (v < 0 || v > FREQ_MAX) {
-                        throw new Error(`Неверная частота "${t}" в полосе ${num} (ожидалось 0..${FREQ_MAX})`);
-                    }
+                    if (v < 0 || v > FREQ_MAX) throw new Error(`Неверная частота "${t}" в полосе ${num} (ожидалось 0..${FREQ_MAX})`);
                     freqs.push(v);
                     continue;
                 }
-                // Нечисловой токен: имя -> буква -> маркер типа полосы -> мусор
                 const up = t.toUpperCase();
-                if (!name) {
-                    name = t;
-                } else if (!letter && t.length === 1) {
-                    letter = up;
-                } else if (FACTORY_WORDS.has(up)) {
-                    factory = true;
-                } else if (!NONFACTORY_WORDS.has(up)) {
-                    // неизвестное слово — лишнее поле, отбрасываем
-                }
+                if (!name) name = t;
+                else if (!letter && t.length === 1) letter = up;
+                else if (FACTORY_WORDS.has(up)) factory = true;
             }
-
-            // Флаг завода в конце в виде 0/1: последний токен 0 или 1,
-            // а перед ним настоящая частота (> 1000) — значит это флаг, не канал.
             if (freqs.length >= 2) {
                 const last = freqs[freqs.length - 1];
                 if ((last === 0 || last === 1) && freqs[freqs.length - 2] > 1000) {
@@ -230,7 +191,6 @@ function parseVtxTableText(text) {
                     freqs.pop();
                 }
             }
-
             bandMap.set(num, { name, letter, freqs, factory });
         } else if (sub === "powervalues") {
             powerValues = [];
@@ -244,13 +204,11 @@ function parseVtxTableText(text) {
         } else if (sub === "powerlabels") {
             powerLabels = rest.slice(1);
         }
-        // всё прочее (vtxtable save, set-строки и пр.) игнорируем
     }
 
     if (bandsCount === null && bandMap.size === 0) {
         throw new Error("Таблица не найдена: нет ни одной строки vtxtable bands / vtxtable band");
     }
-
     if (bandsCount === null) bandsCount = bandMap.size;
     if (powerValues !== null && powerLabels !== null && powerValues.length !== powerLabels.length) {
         throw new Error(`Число powervalues (${powerValues.length}) не совпадает с числом powerlabels (${powerLabels.length})`);
@@ -259,9 +217,6 @@ function parseVtxTableText(text) {
         channelsCount = 0;
         for (const b of bandMap.values()) channelsCount = Math.max(channelsCount, b.freqs.length);
     }
-
-    // Полосы нумеруются с 1; размер списка = максимум из объявленного и
-    // самого большого встреченного номера. Пропущенные номера — пустые полосы.
     let maxBandNum = bandsCount;
     for (const num of bandMap.keys()) maxBandNum = Math.max(maxBandNum, num);
 
@@ -272,7 +227,6 @@ function parseVtxTableText(text) {
             ? { name: b.name, letter: b.letter, is_factory_band: b.factory, frequencies: b.freqs }
             : { name: "", letter: "", is_factory_band: false, frequencies: [] });
     }
-
     const powerlevels_list = [];
     if (powerValues !== null) {
         for (let i = 0; i < powerValues.length; i++) {
@@ -282,15 +236,8 @@ function parseVtxTableText(text) {
             });
         }
     }
-
-    return {
-        description: "",
-        version: "1.0",
-        vtx_table: { bands_list, powerlevels_list },
-    };
+    return { description: "", version: "1.0", vtx_table: { bands_list, powerlevels_list } };
 }
-
-// ---------- Вспомогательное ----------
 
 const CYRILLIC = {
     а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
@@ -311,29 +258,103 @@ function setStatus(text, kind) {
     el.className = "status " + (kind || "");
 }
 
-function extOf(fileName) {
-    const m = /\.([a-z0-9]+)$/i.exec(fileName || "");
-    return m ? m[1].toLowerCase() : "png";
+const MIME_EXT = {
+    "image/webp": "webp", "image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg",
+    "image/gif": "gif", "image/avif": "avif", "image/bmp": "bmp", "image/svg+xml": "svg",
+};
+
+function extOf(file) {
+    if (!file) return "png";
+    const type = (file.type || "").toLowerCase();
+    if (MIME_EXT[type]) return MIME_EXT[type];
+    const name = (file.name || "").toLowerCase();
+    const m = /\.([a-z0-9]+)$/.exec(name);
+    if (m && m[1]) return m[1] === "jpeg" ? "jpg" : m[1];
+    return "png";
 }
 
-// ---------- Каталог: загрузка и запись ----------
+const ENTRIES_CACHE_KEY = "vtxCatalogEntries";
+function persistEntriesCache() {
+    try { localStorage.setItem(ENTRIES_CACHE_KEY, JSON.stringify(entries)); } catch (e) { }
+}
+function loadCachedEntries() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(ENTRIES_CACHE_KEY) || "null");
+        if (Array.isArray(cached) && cached.length > 0) { entries = cached; renderEntries(); }
+    } catch (e) { }
+}
+
+const IDB_NAME = "vtxCatalogUtil";
+const IDB_STORE = "handles";
+function idbOpen() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+async function idbSet(key, value) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+        const req = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+    });
+}
 
 async function pickDirectory() {
     if (!fsApiAvailable) {
-        setStatus("File System Access API недоступен в этом браузере. Используйте Chrome/Edge, либо кнопку резервного скачивания файлов ниже.", "err");
+        setStatus("File System Access API недоступен. Используйте Chrome/Edge.", "err");
         return;
     }
     let handle;
+    try { handle = await window.showDirectoryPicker({ id: "vtxCatalog", mode: "readwrite" }); }
+    catch (e) { if (e.name !== "AbortError") setStatus("Не удалось открыть папку: " + e.message, "err"); return; }
+    try { await idbSet("dirHandle", handle); } catch (e) { }
+    await connectDir(handle);
+}
+
+async function restoreSavedDir() {
+    if (!fsApiAvailable) return;
     try {
-        handle = await window.showDirectoryPicker({ id: "vtxCatalog", mode: "readwrite" });
-    } catch (e) {
-        if (e.name !== "AbortError") setStatus("Не удалось открыть папку: " + e.message, "err");
-        return;
-    }
+        const handle = await idbGet("dirHandle");
+        if (!handle) return;
+        const perm = await handle.queryPermission({ mode: "readwrite" });
+        if (perm === "granted") await connectDir(handle);
+        else {
+            const btn = document.getElementById("btnResumeDir");
+            btn.textContent = `Продолжить с папкой: ${handle.name}`;
+            btn.hidden = false;
+        }
+    } catch (e) { }
+}
+
+async function resumeSavedDir() {
+    try {
+        const handle = await idbGet("dirHandle");
+        if (!handle) return;
+        const perm = await handle.requestPermission({ mode: "readwrite" });
+        if (perm === "granted") await connectDir(handle);
+        else setStatus("Доступ к сохранённой папке не выдан.", "err");
+    } catch (e) { setStatus("Не удалось восстановить папку: " + e.message, "err"); }
+}
+
+async function connectDir(handle) {
     dirHandle = handle;
     document.getElementById("dirState").textContent = "подключена: " + handle.name;
     await loadCatalog();
     document.getElementById("btnAdd").disabled = false;
+    document.getElementById("btnResumeDir").hidden = true;
 }
 
 async function loadCatalog() {
@@ -343,37 +364,28 @@ async function loadCatalog() {
         const data = await fh.getFile();
         const parsed = JSON.parse(await data.text());
         if (parsed && Array.isArray(parsed.entries)) entries = parsed.entries;
-    } catch (e) {
-        // каталога ещё нет — начнём с пустого
-    }
+    } catch (e) { }
     renderEntries();
+    persistEntriesCache();
 }
 
 function renderEntries() {
     const wrap = document.getElementById("entriesWrap");
-    if (entries.length === 0) {
-        wrap.innerHTML = '<div class="preview">Каталог пуст.</div>';
-        return;
-    }
+    if (entries.length === 0) { wrap.innerHTML = '<div class="preview">Каталог пуст.</div>'; return; }
     let html = "<table><tr><th>Название</th><th>Полос</th><th>Каналов</th><th>Уровней</th><th>Фото</th></tr>";
     for (const e of entries) {
         const t = e.table && e.table.vtx_table ? e.table.vtx_table : null;
         const bands = t ? t.bands_list.length : "—";
         const chans = t && t.bands_list[0] ? t.bands_list[0].frequencies.length : "—";
         const pw = t ? t.powerlevels_list.length : "—";
-        const photo = e.photo
-            ? `<img class="thumb" src="" alt="${e.name}" data-photopath="${e.photo}">`
-            : '<span class="ghost">нет</span>';
+        const photo = !e.photo ? '<span class="ghost">нет</span>'
+            : dirHandle ? `<img class="thumb" src="" alt="${e.name}" data-photopath="${e.photo}">`
+            : '<span class="ghost">фото в папке</span>';
         html += `<tr><td>${escapeHtml(e.name)}</td><td>${bands}</td><td>${chans}</td><td>${pw}</td><td>${photo}</td></tr>`;
     }
     html += "</table>";
     wrap.innerHTML = html;
-    // превью фото — только при подключённой папке
-    if (dirHandle) {
-        for (const img of wrap.querySelectorAll("img[data-photopath]")) {
-            loadEntryPhoto(img);
-        }
-    }
+    if (dirHandle) for (const img of wrap.querySelectorAll("img[data-photopath]")) loadEntryPhoto(img);
 }
 
 async function loadEntryPhoto(img) {
@@ -383,47 +395,31 @@ async function loadEntryPhoto(img) {
         const fh = await photosDir.getFileHandle(name);
         const file = await fh.getFile();
         img.src = URL.createObjectURL(file);
-    } catch (e) { /* фото нет — оставляем пустым */ }
+    } catch (e) { }
 }
 
 function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    }[c]));
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// ---------- Добавление записи ----------
-
-// Полоса и канал в записи всегда фиксированы, независимо от вставленного текста:
-// строки "set vtx_band = ..." и "set vtx_channel = ..." игнорируются парсером.
 const FIXED_VTX_BAND = 1;
 const FIXED_VTX_CHANNEL = 1;
 
 async function addToCatalog() {
     const name = document.getElementById("nameInput").value.trim();
-    if (!name) {
-        setStatus("Укажите название передатчика.", "err");
-        return;
-    }
+    if (!name) { setStatus("Укажите название передатчика.", "err"); return; }
+
     let table;
-    try {
-        table = parseVtxTableText(document.getElementById("tableInput").value);
-    } catch (e) {
-        setStatus("Ошибка разбора таблицы: " + e.message, "err");
-        return;
-    }
+    try { table = parseVtxTableText(document.getElementById("tableInput").value); }
+    catch (e) { setStatus("Ошибка разбора таблицы: " + e.message, "err"); return; }
     table.description = name;
 
-    // Замена по названию (без учёта регистра) либо новая запись
     const norm = name.toLowerCase();
     const existingIdx = entries.findIndex(e => String(e.name).trim().toLowerCase() === norm);
     let id;
     if (existingIdx >= 0) {
         id = entries[existingIdx].id;
-        if (!id) {
-            setStatus("У существующей записи нет id — исправьте catalog.json вручную.", "err");
-            return;
-        }
+        if (!id) { setStatus("У существующей записи нет id — исправьте catalog.json вручную.", "err"); return; }
     } else {
         id = slugify(name);
         if (entries.some(e => e.id === id)) {
@@ -432,31 +428,42 @@ async function addToCatalog() {
         }
     }
 
-    let photoPath = existingIdx >= 0 ? (entries[existingIdx].photo ?? null) : null;
-
-    // Запись: таблица + фиксированные полоса/канал 1/1
     const entry = {
-        id,
-        name,
-        photo: photoPath,
+        id, name,
+        photo: existingIdx >= 0 ? (entries[existingIdx].photo ?? null) : null,
         vtx_band: FIXED_VTX_BAND,
         vtx_channel: FIXED_VTX_CHANNEL,
         table,
     };
 
     if (fsApiAvailable && dirHandle) {
-        try {
-            // Фото
-            if (photoFile) {
+        let photoWarn = "";
+
+        if (photoFile) {
+            const ext = extOf(photoFile);
+            // Безопасное имя: только [a-z0-9._-], точки внутри id заменяем на дефисы,
+            // чтобы избежать проблем SAF с именами, содержащими несколько точек.
+            const safeId = id.replace(/\./g, "-").replace(/[^a-z0-9_-]/gi, "-").replace(/-+/g, "-");
+            let photoName = `${safeId}.${ext}`;
+            try {
+                console.log("[PHOTO] file:", photoFile.name, "type:", photoFile.type, "size:", photoFile.size, "->", photoName);
                 const photosDir = await dirHandle.getDirectoryHandle("photos", { create: true });
-                const ext = extOf(photoFile.name);
-                const fh = await photosDir.getFileHandle(`${id}.${ext}`, { create: true });
+                const fh = await photosDir.getFileHandle(photoName, { create: true });
                 const w = await fh.createWritable();
-                await w.write(photoFile);
+                const buf = new Uint8Array(await photoFile.arrayBuffer());
+                console.log("[PHOTO] bytes:", buf.byteLength);
+                if (buf.byteLength === 0) throw new Error("файл фото пуст (0 байт)");
+                await w.write(buf);
                 await w.close();
-                entry.photo = `photos/${id}.${ext}`;
+                entry.photo = `photos/${photoName}`;
+            } catch (photoErr) {
+                console.error("[PHOTO] write failed:", photoErr);
+                entry.photo = null;
+                photoWarn = `\n⚠ Фото не записано: ${photoErr.message || photoErr}. Запись добавлена без фото.`;
             }
-            // catalog.json
+        }
+
+        try {
             if (existingIdx >= 0) entries[existingIdx] = entry;
             else entries.push(entry);
 
@@ -467,25 +474,28 @@ async function addToCatalog() {
 
             setStatus(
                 (existingIdx >= 0 ? "Запись заменена: " : "Запись добавлена: ") + name +
+                `\nid: ${id}` +
                 `\nПолоса/канал: ${FIXED_VTX_BAND}/${FIXED_VTX_CHANNEL} (фиксировано)` +
-                "\nНе забудьте закоммитить vtxCatalog/catalog.json" + (photoFile ? ` и photos/${id}.${extOf(photoFile.name)}` : ""),
+                (entry.photo ? `\nФото: ${entry.photo}` : "\nФото: нет") +
+                photoWarn +
+                "\nНе забудьте закоммитить vtxCatalog/catalog.json" + (entry.photo ? ` и ${entry.photo}` : ""),
                 "ok",
             );
             renderEntries();
+            persistEntriesCache();
         } catch (e) {
-            setStatus("Не удалось записать файлы: " + e.message, "err");
+            setStatus("Не удалось записать catalog.json: " + e.message, "err");
         }
     } else {
-        // Резервный вариант без доступа к диску: отдаём файлы на скачивание
-        if (photoFile) entry.photo = `photos/${id}.${extOf(photoFile.name)}`;
+        if (photoFile) entry.photo = `photos/${id}.${extOf(photoFile)}`;
         if (existingIdx >= 0) entries[existingIdx] = entry;
         else entries.push(entry);
-
         const blob = new Blob([JSON.stringify({ entries }, null, 4)], { type: "application/json" });
         downloadBlob(blob, "catalog.json");
-        if (photoFile) downloadBlob(photoFile, `${id}.${extOf(photoFile.name)}`);
-        setStatus("Скачаны файлы для ручной укладки в vtxCatalog/. Замените catalog.json и положите фото в photos/.", "ok");
+        if (photoFile) downloadBlob(photoFile, `${id}.${extOf(photoFile)}`);
+        setStatus("Скачаны файлы для ручной укладки в vtxCatalog/.", "ok");
         renderEntries();
+        persistEntriesCache();
     }
 }
 
@@ -498,15 +508,10 @@ function downloadBlob(blob, fileName) {
     URL.revokeObjectURL(url);
 }
 
-// ---------- Превью разбора ----------
-
 function updateParsePreview() {
     const el = document.getElementById("parsePreview");
     const text = document.getElementById("tableInput").value;
-    if (!text.trim()) {
-        el.textContent = "";
-        return;
-    }
+    if (!text.trim()) { el.textContent = ""; return; }
     try {
         const t = parseVtxTableText(text);
         const bands = t.vtx_table.bands_list.filter(b => b.frequencies.length > 0).length;
@@ -518,29 +523,22 @@ function updateParsePreview() {
     }
 }
 
-// ---------- Фото ----------
-
 function onPhotoChange() {
     const input = document.getElementById("photoInput");
     const preview = document.getElementById("photoPreview");
     const clearBtn = document.getElementById("btnClearPhoto");
     photoFile = input.files && input.files[0] ? input.files[0] : null;
-    if (photoFile) {
-        preview.src = URL.createObjectURL(photoFile);
-        preview.hidden = false;
-        clearBtn.hidden = false;
-    } else {
-        preview.hidden = true;
-        clearBtn.hidden = true;
-    }
+    if (photoFile) { preview.src = URL.createObjectURL(photoFile); preview.hidden = false; clearBtn.hidden = false; }
+    else { preview.hidden = true; clearBtn.hidden = true; }
 }
-
-// ---------- Инициализация ----------
 
 document.getElementById("btnPickDir").addEventListener("click", pickDirectory);
 document.getElementById("btnAdd").addEventListener("click", addToCatalog);
 document.getElementById("tableInput").addEventListener("input", updateParsePreview);
 document.getElementById("photoInput").addEventListener("change", onPhotoChange);
+document.getElementById("btnResumeDir").addEventListener("click", resumeSavedDir);
+loadCachedEntries();
+restoreSavedDir();
 document.getElementById("btnClearPhoto").addEventListener("click", () => {
     document.getElementById("photoInput").value = "";
     onPhotoChange();
