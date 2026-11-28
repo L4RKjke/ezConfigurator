@@ -81,7 +81,9 @@ function nativeFile(): BetaflightFilePlugin {
  */
 class CapacitorFile {
     constructor() {
-        if (!BetaflightFile) {
+        // Плагин существует только в нативной сборке Android/iOS.
+        // На ПК/в браузере его отсутствие ожидаемо и не является ошибкой.
+        if (!BetaflightFile && Capacitor.isNativePlatform()) {
             console.error(`${logHead} Native BetaflightFile plugin is not available`);
         }
     }
