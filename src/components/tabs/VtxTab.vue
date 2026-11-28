@@ -240,14 +240,16 @@
                                     @click="applyCatalog"
                                 />
                             </div>
-
-                            <!-- Правая колонка: фото тянется по высоте левой колонки, пропорции сохраняются -->
-                            <img
+                            <div
                                 v-if="selectedCatalogPhoto"
-                                :src="selectedCatalogPhoto"
-                                :alt="selectedCatalogEntry?.name"
-                                class="self-stretch h-auto w-auto max-w-full rounded-md border border-(--ui-border) object-contain shrink-0"
-                            />
+                                class="self-stretch shrink-0 flex items-center"
+                            >
+                                <img
+                                    :src="selectedCatalogPhoto"
+                                    :alt="selectedCatalogEntry?.name"
+                                    class="h-full w-auto max-w-full max-h-64 object-contain rounded-md border border-(--ui-border)"
+                                />
+                            </div>
                         </div>
                     </UiBox>
                 </div>
