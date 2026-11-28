@@ -198,9 +198,13 @@
                                     <span class="text-xs" v-html="$t('vtxCatalogSelectModel')"></span>
                                     <HelpIcon :text="$t('vtxCatalogHelp')" />
                                 </div>
-                                <USelect v-model="selectedCatalogId" :items="catalogOptions" class="w-64" />
-                            </div>
-
+                                <USelect
+                                    v-model="selectedCatalogId"
+                                    :items="catalogOptions"
+                                    :placeholder="$t('vtxCatalogSelectModel')"
+                                    class="w-64"
+                                />
+                            </div>  
                             <img
                                 v-if="selectedCatalogPhoto"
                                 :src="selectedCatalogPhoto"
@@ -547,12 +551,11 @@ export default defineComponent({
         } = useVtx();
         const { entries: catalogEntries, photoUrl } = useVtxCatalog();
  
-        const selectedCatalogId = ref("");
+        const selectedCatalogId = ref<string | null>(null);
 
-        const catalogOptions = computed(() => [
-            { value: "", label: t("vtxCatalogSelectModel") },
-            ...catalogEntries.map(e => ({ value: e.id, label: e.name })),
-        ]);
+        const catalogOptions = computed(() =>
+            catalogEntries.map(e => ({ value: e.id, label: e.name })),
+        );
 
         const selectedCatalogEntry = computed(
             () => catalogEntries.find(e => e.id === selectedCatalogId.value) ?? null,
@@ -602,7 +605,7 @@ export default defineComponent({
             onVtxTableChange();
 
             // Сброс выбора, чтобы повторное нажатие не применяло то же самое вслепую
-            selectedCatalogId.value = "";
+            selectedCatalogId.value = null;
         }
 
         const { addInterval } = useInterval();
