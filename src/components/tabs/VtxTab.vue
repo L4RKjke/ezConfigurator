@@ -572,9 +572,6 @@ export default defineComponent({
             const table = entry?.table?.vtx_table;
             if (!entry || !table) return;
 
-            // Несохранённые изменения таблицы — перезаписываем только по подтверждению
-            if (!vtxConfigSaveDisabled.value && !confirm(t("vtxCatalogApplyConfirm"))) return;
-
             setTableBands(table.bands_list.length);
             const channels = table.bands_list.reduce(
                 (max, band) => Math.max(max, band.frequencies.length),
@@ -598,13 +595,11 @@ export default defineComponent({
                 setPowerLevelLabel(index + 1, level.label);
             });
 
-            // Полоса и канал в записи каталога всегда фиксированы (записаны утилитой как 1/1)
             vtxConfig.vtx_band = entry.vtx_band ?? 1;
             vtxConfig.vtx_channel = entry.vtx_channel ?? 1;
 
             onVtxTableChange();
 
-            // Сброс выбора, чтобы повторное нажатие не применяло то же самое вслепую
             selectedCatalogId.value = null;
         }
 
