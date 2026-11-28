@@ -192,7 +192,7 @@
                 <!-- VTX Catalog -->
                 <div v-show="vtxSupported" class="w-full">
                     <UiBox :title="$t('vtxCatalog')" type="neutral" class="w-full">
-                        <div class="flex flex-wrap items-start gap-4">
+                        <div class="flex flex-wrap items-stretch gap-4">
                             <!-- Левая колонка: фильтры и кнопка друг под другом -->
                             <div class="flex flex-col gap-3">
                                 <div class="flex flex-col gap-1">
@@ -241,12 +241,12 @@
                                 />
                             </div>
 
-                            <!-- Правая колонка: фото, компактное, не растянутое -->
+                            <!-- Правая колонка: фото тянется по высоте левой колонки, пропорции сохраняются -->
                             <img
                                 v-if="selectedCatalogPhoto"
                                 :src="selectedCatalogPhoto"
                                 :alt="selectedCatalogEntry?.name"
-                                class="h-24 w-auto max-w-full rounded-md border border-(--ui-border) object-contain self-start shrink-0"
+                                class="self-stretch h-auto w-auto max-w-full rounded-md border border-(--ui-border) object-contain shrink-0"
                             />
                         </div>
                     </UiBox>
