@@ -23,8 +23,8 @@ export interface EzBetaState {
     statusLog: string[];
 }
 
-export const EZBETA_WORKER_URL_DEFAULT = "https://d5dn4v72511b752ei4fj.qsvaa8tq.apigw.yandexcloud.net";
-export const EZBETA_WORKER_URL_STORAGE_KEY = "ezbeta_worker_url_v2";
+export const EZBETA_WORKER_URL_DEFAULT = "https://ezbeta.nik-trenikhin.workers.dev";
+export const EZBETA_WORKER_URL_STORAGE_KEY = "ezbeta_worker_url";
 
 export function createEzBetaState(): EzBetaState {
     let storedUrl = EZBETA_WORKER_URL_DEFAULT;
