@@ -8,19 +8,21 @@
             <div class="mt-4 flex flex-wrap items-start gap-4"
                 :inert="rulesBusy || recoveryRequired">
 
+                <!-- Warnings: на всю ширину, панели пойдут ниже -->
+                <div class="w-full flex flex-col gap-2">
+                    <!-- Not supported -->
+                    <UiBox v-show="!vtxSupported" highlight>
+                        <div v-html="$t('vtxMessageNotSupported')"></div>
+                    </UiBox>
 
-                <!-- Not supported -->
-                <UiBox highlight v-show="!vtxSupported" class="mt-3 w-full sm:w-96">
-                    <div v-html="$t('vtxMessageNotSupported')"></div>
-                </UiBox>
-
-                <!-- Table not configured / factory bands warnings -->
-                <UiBox v-show="vtxTableNotConfigured" highlight class="mt-3 w-full sm:w-96">
-                    <div v-html="$t('vtxMessageTableNotConfigured')"></div>
-                </UiBox>
-                <UiBox v-show="factoryBandsNotSupported" highlight class="mt-3 w-full sm:w-96">
-                    <div v-html="$t('vtxMessageFactoryBandsNotSupported')"></div>
-                </UiBox>
+                    <!-- Table not configured / factory bands warnings -->
+                    <UiBox v-show="vtxTableNotConfigured" highlight>
+                        <div v-html="$t('vtxMessageTableNotConfigured')"></div>
+                    </UiBox>
+                    <UiBox v-show="factoryBandsNotSupported" highlight>
+                        <div v-html="$t('vtxMessageFactoryBandsNotSupported')"></div>
+                    </UiBox>
+                </div>
 
                 <!-- Configuration Panel -->
                 <UiBox
@@ -189,7 +191,7 @@
                 </UiBox>
 
                 <!-- VTX Table -->
-                <div class="max-w-full overflow-x-auto">
+                <div class="w-full max-w-full overflow-x-auto">
                     <UiBox :title="$t('vtxTable')" type="neutral" class="w-fit">
                         <div class="flex flex-col gap-4">
                             <!-- Bands and channels count -->
