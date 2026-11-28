@@ -189,6 +189,35 @@
                         </SettingRow>
                     </div>
                 </UiBox>
+                <!-- VTX Catalog -->
+                <div v-show="vtxSupported" class="w-full max-w-full overflow-x-auto">
+                    <UiBox :title="$t('vtxCatalog')" type="neutral" class="w-fit">
+                        <div class="flex flex-wrap items-start gap-4">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-1">
+                                    <span class="text-xs" v-html="$t('vtxCatalogSelectModel')"></span>
+                                    <HelpIcon :text="$t('vtxCatalogHelp')" />
+                                </div>
+                                <USelect v-model="selectedCatalogId" :items="catalogOptions" class="w-64" />
+                            </div>
+
+                            <img
+                                v-if="selectedCatalogPhoto"
+                                :src="selectedCatalogPhoto"
+                                :alt="selectedCatalogEntry?.name"
+                                class="max-h-24 rounded-md border border-(--ui-border)"
+                            />
+
+                            <div class="flex items-end">
+                                <UButton
+                                    :label="$t('vtxCatalogApply')"
+                                    :disabled="!selectedCatalogEntry || isSaving || importBusy"
+                                    @click="applyCatalog"
+                                />
+                            </div>
+                        </div>
+                    </UiBox>
+                </div>
 
                 <!-- VTX Table -->
                 <div class="w-full max-w-full overflow-x-auto">
@@ -205,7 +234,7 @@
                                         :model-value="vtxConfig.vtx_table_bands"
                                         @update:model-value="setTableBands"
                                         :min="0"
-                                        :max="8"
+                                        :max="32"
                                         :step="1"
                                         :format-options="{ useGrouping: false }"
                                         size="xs"
@@ -457,6 +486,7 @@ import VtxRulesEditor from "../vtx/VtxRulesEditor.vue";
 import { useConnectionStore } from "@/stores/connection";
 import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 import { useVtxAllowChange } from "@/composables/useVtxAllowChange";
+import { useVtxCatalog } from "@/composables/useVtxCatalog";
 
 export default defineComponent({
     name: "VtxTab",
@@ -515,6 +545,65 @@ export default defineComponent({
             loadClipboardJson,
             onVtxTableChange,
         } = useVtx();
+        const { entries: catalogEntries, photoUrl } = useVtxCatalog();
+ 
+        const selectedCatalogId = ref("");
+
+        const catalogOptions = computed(() => [
+            { value: "", label: t("vtxCatalogSelectModel") },
+            ...catalogEntries.map(e => ({ value: e.id, label: e.name })),
+        ]);
+
+        const selectedCatalogEntry = computed(
+            () => catalogEntries.find(e => e.id === selectedCatalogId.value) ?? null,
+        );
+
+        const selectedCatalogPhoto = computed(
+            () => (selectedCatalogEntry.value ? photoUrl(selectedCatalogEntry.value.photo) : null),
+        );
+
+        // Применяет таблицу выбранной модели через те же сеттеры, что и ручной ввод,
+        // чтобы onVtxTableChange() и dirty-состояние отработали как обычно.
+        function applyCatalog() {
+            const entry = selectedCatalogEntry.value;
+            const table = entry?.table?.vtx_table;
+            if (!entry || !table) return;
+
+            // Несохранённые изменения таблицы — перезаписываем только по подтверждению
+            if (!vtxConfigSaveDisabled.value && !confirm(t("vtxCatalogApplyConfirm"))) return;
+
+            setTableBands(table.bands_list.length);
+            const channels = table.bands_list.reduce(
+                (max, band) => Math.max(max, band.frequencies.length),
+                0,
+            );
+            setTableChannels(channels);
+
+            table.bands_list.forEach((band, bandIndex) => {
+                const bandNumber = bandIndex + 1;
+                setBandName(bandNumber, band.name);
+                setBandLetter(bandNumber, band.letter);
+                setBandFactory(bandNumber, band.is_factory_band);
+                band.frequencies.forEach((freq, chIndex) => {
+                    setBandChannelFreq(bandNumber, chIndex + 1, freq);
+                });
+            });
+
+            setTablePowerLevels(table.powerlevels_list.length);
+            table.powerlevels_list.forEach((level, index) => {
+                setPowerLevelValue(index + 1, level.value);
+                setPowerLevelLabel(index + 1, level.label);
+            });
+
+            // Полоса и канал в записи каталога всегда фиксированы (записаны утилитой как 1/1)
+            vtxConfig.vtx_band = entry.vtx_band ?? 1;
+            vtxConfig.vtx_channel = entry.vtx_channel ?? 1;
+
+            onVtxTableChange();
+
+            // Сброс выбора, чтобы повторное нажатие не применяло то же самое вслепую
+            selectedCatalogId.value = "";
+        }
 
         const { addInterval } = useInterval();
         const { isSaving, runSave } = useSaving();
@@ -931,6 +1020,12 @@ export default defineComponent({
             ruleChannelsFor,
             drainStatus,
             importVtxFile,
+            // VTX Catalog
+            selectedCatalogId,
+            catalogOptions,
+            selectedCatalogEntry,
+            selectedCatalogPhoto,
+            applyCatalog,
         };
     },
 });

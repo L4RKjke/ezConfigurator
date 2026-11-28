@@ -57,7 +57,7 @@ interface SelectOption {
 type PowerRange = { min: number; max: number } | { min?: undefined; max?: undefined };
 
 const MAX_POWERLEVEL_VALUES = 8;
-const MAX_BAND_VALUES = 8;
+const MAX_BAND_VALUES = 32;
 const MAX_BAND_CHANNELS_VALUES = 8;
 
 // Cancelling a file picker resolves null on Android and the fallback picker, and rejects with an

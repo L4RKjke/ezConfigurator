@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Каталог видеопередатчиков — утилита мейнтейнера</title>
+<style>
+    :root {
+        --bg: #16181d;
+        --panel: #1f232b;
+        --border: #333a45;
+        --text: #e6e9ee;
+        --dim: #9aa3b0;
+        --accent: #4b9fea;
+        --ok: #4fc06a;
+        --err: #e05b5b;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 system-ui, sans-serif;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .hint { color: var(--dim); font-size: 12px; margin-bottom: 20px; }
+    .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        max-width: 780px;
+    }
+    .panel h2 { font-size: 14px; margin: 0 0 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+    label { display: block; margin-bottom: 4px; font-size: 13px; }
+    input[type="text"], textarea {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        padding: 8px 10px;
+        font: inherit;
+    }
+    textarea { min-height: 180px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
+    textarea:focus, input:focus { outline: 1px solid var(--accent); }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button {
+        background: var(--accent);
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        padding: 9px 16px;
+        font: inherit;
+        cursor: pointer;
+    }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.soft { background: var(--border); }
+    #photoPreview { max-height: 120px; max-width: 200px; border-radius: 6px; border: 1px solid var(--border); }
+    .status { margin-top: 8px; font-size: 13px; white-space: pre-wrap; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+    .preview { color: var(--dim); font-size: 13px; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--dim); font-weight: 500; }
+    td.ghost { color: var(--dim); }
+    .thumb { max-height: 32px; max-width: 60px; border-radius: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>Каталог видеопередатчиков</h1>
+<div class="hint">
+    Внутренняя утилита мейнтейнера. Добавляет записи в <code>vtxCatalog/catalog.json</code> и фото в
+    <code>vtxCatalog/photos/</code>. Работает в Chrome / Edge (File System Access API).<br>
+    Таблицу можно вставлять любым текстом — в JSON попадут только строки vtxtable,
+    строки set/save/#-комментарии игнорируются. Полоса и канал в записи всегда фиксируются как 1/1.<br>
+    Если название уже есть в каталоге — существующая запись будет заменена.
+</div>
+
+<div class="panel">
+    <h2>Каталог</h2>
+    <div class="row">
+        <button id="btnPickDir">Открыть папку vtxCatalog</button>
+        <span id="dirState" class="preview">папка не подключена</span>
+    </div>
+    <div id="entriesWrap" style="margin-top: 12px;"></div>
+</div>
+
+<div class="panel">
+    <h2>Новая запись</h2>
+
+    <label for="nameInput">Название передатчика</label>
+    <input type="text" id="nameInput" placeholder="Например: Rush Max Solo 2.5W" autocomplete="off">
+
+    <div style="height: 12px;"></div>
+
+    <label for="tableInput">Таблица (вставьте вывод CLI целиком — лишнее будет отброшено)</label>
+    <textarea id="tableInput" spellcheck="false" placeholder="# vtxtable Rush Max Solo 2.5W&#10;vtxtable channels 8&#10;vtxtable band 1 BAND_A A CUSTOM 5865 5845 5825 5805 5785 5765 5745 5725&#10;vtxtable powerlevels 4&#10;vtxtable powervalues 14 27 30 34&#10;vtxtable powerlabels 25 500 1 2.5&#10;..."></textarea>
+    <div class="preview" id="parsePreview"></div>
+
+    <div style="height: 12px;"></div>
+
+    <div class="row">
+        <div>
+            <label for="photoInput">Фото (не обязательно)</label>
+            <input type="file" id="photoInput" accept="image/*">
+        </div>
+        <img id="photoPreview" alt="" hidden>
+        <button id="btnClearPhoto" class="soft" hidden>Убрать фото</button>
+    </div>
+
+    <div style="height: 16px;"></div>
+
+    <div class="row">
+        <button id="btnAdd" disabled>Добавить запись в каталог</button>
+        <button id="btnDownloadFallback" class="soft" hidden>Скачать файлы (резервный вариант)</button>
+    </div>
+    <div class="status" id="status"></div>
+</div>
+
+<script>
+"use strict";
+
+const FREQ_MAX = 5999;
+const POWER_MAX = 65535;
+
+// Слова-признаки типа полосы в строке vtxtable band:
+// FACTORY/F — заводская полоса, CUSTOM/C — не заводская (маркер просто отбрасывается).
+const FACTORY_WORDS = new Set(["F", "FACTORY"]);
+const NONFACTORY_WORDS = new Set(["C", "CUSTOM"]);
+const INT_RE = /^-?\d+$/;
+
+// ---------- Состояние ----------
+
+let dirHandle = null;      // FileSystemDirectoryHandle для vtxCatalog
+let entries = [];          // текущий каталог
+let photoFile = null;      // выбранный файл фото
+let fsApiAvailable = "showDirectoryPicker" in window;
+
+// ---------- Разбор vtxtable ----------
+
+/**
+ * Разбирает произвольный текст, оставляя только строки vtxtable, и собирает
+ * объект по схеме Betaflight VTX Table. Всё лишнее (посторонние строки, set-,
+ * save- и #-строки, префиксы вида "Betaflight/..." перед vtxtable) отбрасывается.
+ * Ограничений на число полос, каналов и уровней мощности нет.
+ * Бросает Error с понятным сообщением при ошибке разбора.
+ */
+function parseVtxTableText(text) {
+    const lines = text.split(/\r?\n/);
+    let bandsCount = null;
+    let channelsCount = null;
+    const bandMap = new Map(); // номер полосы -> {name, letter, freqs, factory}
+    let powerValues = null;
+    let powerLabels = null;
+
+    // Невидимые символы (zero-width space, BOM и т.п.) затесываются при копировании
+    // и ломают разбор чисел — вычищаем их до токенизации.
+    const ZERO_WIDTH_RE = /[\u200B-\u200D\u2060\uFEFF]/g;
+
+    for (const raw of lines) {
+        const line = raw.replace(ZERO_WIDTH_RE, "").trim();
+        if (!line) continue;
+        const tokens = line.split(/\s+/);
+        // Строка может начинаться мусором (промпт CLI, даты и т.п.) — ищем "vtxtable"
+        const vtIdx = tokens.findIndex(t => t.toLowerCase() === "vtxtable");
+        if (vtIdx === -1) continue; // мусор отбрасываем
+        const rest = tokens.slice(vtIdx + 1);
+        const sub = (rest[0] || "").toLowerCase();
+
+        if (sub === "bands") {
+            const n = parseInt(rest[1], 10);
+            if (!Number.isInteger(n) || n < 0) {
+                throw new Error(`Неверное число полос в строке "${line}"`);
+            }
+            bandsCount = n;
+        } else if (sub === "channels") {
+            const n = parseInt(rest[1], 10);
+            if (!Number.isInteger(n) || n < 0) {
+                throw new Error(`Неверное число каналов в строке "${line}"`);
+            }
+            channelsCount = n;
+        } else if (sub === "band") {
+            // vtxtable band <num> <name> <letter> <f1..fn> [<factory>]
+            // Формат терпим к порядку: частоты и слова разделяются по типу токена.
+            // Пример: "vtxtable band 1 BAND_A A CUSTOM 5865 5845 ... 5725"
+            // Пример: "vtxtable band 1 BOSCAM_A A 5865 ... 5725 1" (флаг в конце)
+            const toks = rest.slice(1);
+            const num = parseInt(toks[0], 10);
+            if (!Number.isInteger(num) || num < 1) {
+                throw new Error(`Неверный номер полосы в строке "${line}"`);
+            }
+            let name = "";
+            let letter = "";
+            let factory = false;
+            const freqs = [];
+
+            for (let i = 1; i < toks.length; i++) {
+                const t = toks[i];
+                if (INT_RE.test(t)) {
+                    const v = parseInt(t, 10);
+                    if (v < 0 || v > FREQ_MAX) {
+                        throw new Error(`Неверная частота "${t}" в полосе ${num} (ожидалось 0..${FREQ_MAX})`);
+                    }
+                    freqs.push(v);
+                    continue;
+                }
+                // Нечисловой токен: имя -> буква -> маркер типа полосы -> мусор
+                const up = t.toUpperCase();
+                if (!name) {
+                    name = t;
+                } else if (!letter && t.length === 1) {
+                    letter = up;
+                } else if (FACTORY_WORDS.has(up)) {
+                    factory = true;
+                } else if (!NONFACTORY_WORDS.has(up)) {
+                    // неизвестное слово — лишнее поле, отбрасываем
+                }
+            }
+
+            // Флаг завода в конце в виде 0/1: последний токен 0 или 1,
+            // а перед ним настоящая частота (> 1000) — значит это флаг, не канал.
+            if (freqs.length >= 2) {
+                const last = freqs[freqs.length - 1];
+                if ((last === 0 || last === 1) && freqs[freqs.length - 2] > 1000) {
+                    factory = last === 1;
+                    freqs.pop();
+                }
+            }
+
+            bandMap.set(num, { name, letter, freqs, factory });
+        } else if (sub === "powervalues") {
+            powerValues = [];
+            for (const v of rest.slice(1)) {
+                const n = parseInt(v, 10);
+                if (!INT_RE.test(v) || !Number.isInteger(n) || n < 0 || n > POWER_MAX) {
+                    throw new Error(`Неверное значение мощности "${v}" (ожидалось 0..${POWER_MAX})`);
+                }
+                powerValues.push(n);
+            }
+        } else if (sub === "powerlabels") {
+            powerLabels = rest.slice(1);
+        }
+        // всё прочее (vtxtable save, set-строки и пр.) игнорируем
+    }
+
+    if (bandsCount === null && bandMap.size === 0) {
+        throw new Error("Таблица не найдена: нет ни одной строки vtxtable bands / vtxtable band");
+    }
+
+    if (bandsCount === null) bandsCount = bandMap.size;
+    if (powerValues !== null && powerLabels !== null && powerValues.length !== powerLabels.length) {
+        throw new Error(`Число powervalues (${powerValues.length}) не совпадает с числом powerlabels (${powerLabels.length})`);
+    }
+    if (channelsCount === null) {
+        channelsCount = 0;
+        for (const b of bandMap.values()) channelsCount = Math.max(channelsCount, b.freqs.length);
+    }
+
+    // Полосы нумеруются с 1; размер списка = максимум из объявленного и
+    // самого большого встреченного номера. Пропущенные номера — пустые полосы.
+    let maxBandNum = bandsCount;
+    for (const num of bandMap.keys()) maxBandNum = Math.max(maxBandNum, num);
+
+    const bands_list = [];
+    for (let i = 1; i <= maxBandNum; i++) {
+        const b = bandMap.get(i);
+        bands_list.push(b
+            ? { name: b.name, letter: b.letter, is_factory_band: b.factory, frequencies: b.freqs }
+            : { name: "", letter: "", is_factory_band: false, frequencies: [] });
+    }
+
+    const powerlevels_list = [];
+    if (powerValues !== null) {
+        for (let i = 0; i < powerValues.length; i++) {
+            powerlevels_list.push({
+                value: powerValues[i],
+                label: powerLabels !== null && powerLabels[i] !== undefined ? powerLabels[i] : String(powerValues[i]),
+            });
+        }
+    }
+
+    return {
+        description: "",
+        version: "1.0",
+        vtx_table: { bands_list, powerlevels_list },
+    };
+}
+
+// ---------- Вспомогательное ----------
+
+const CYRILLIC = {
+    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
+    и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+    с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c", ч: "ch", ш: "sh", щ: "sch",
+    ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+
+function slugify(name) {
+    let slug = name.toLowerCase().split("").map(ch => CYRILLIC[ch] ?? ch).join("");
+    slug = slug.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug || "vtx";
+}
+
+function setStatus(text, kind) {
+    const el = document.getElementById("status");
+    el.textContent = text;
+    el.className = "status " + (kind || "");
+}
+
+function extOf(fileName) {
+    const m = /\.([a-z0-9]+)$/i.exec(fileName || "");
+    return m ? m[1].toLowerCase() : "png";
+}
+
+// ---------- Каталог: загрузка и запись ----------
+
+async function pickDirectory() {
+    if (!fsApiAvailable) {
+        setStatus("File System Access API недоступен в этом браузере. Используйте Chrome/Edge, либо кнопку резервного скачивания файлов ниже.", "err");
+        return;
+    }
+    let handle;
+    try {
+        handle = await window.showDirectoryPicker({ id: "vtxCatalog", mode: "readwrite" });
+    } catch (e) {
+        if (e.name !== "AbortError") setStatus("Не удалось открыть папку: " + e.message, "err");
+        return;
+    }
+    dirHandle = handle;
+    document.getElementById("dirState").textContent = "подключена: " + handle.name;
+    await loadCatalog();
+    document.getElementById("btnAdd").disabled = false;
+}
+
+async function loadCatalog() {
+    entries = [];
+    try {
+        const fh = await dirHandle.getFileHandle("catalog.json");
+        const data = await fh.getFile();
+        const parsed = JSON.parse(await data.text());
+        if (parsed && Array.isArray(parsed.entries)) entries = parsed.entries;
+    } catch (e) {
+        // каталога ещё нет — начнём с пустого
+    }
+    renderEntries();
+}
+
+function renderEntries() {
+    const wrap = document.getElementById("entriesWrap");
+    if (entries.length === 0) {
+        wrap.innerHTML = '<div class="preview">Каталог пуст.</div>';
+        return;
+    }
+    let html = "<table><tr><th>Название</th><th>Полос</th><th>Каналов</th><th>Уровней</th><th>Фото</th></tr>";
+    for (const e of entries) {
+        const t = e.table && e.table.vtx_table ? e.table.vtx_table : null;
+        const bands = t ? t.bands_list.length : "—";
+        const chans = t && t.bands_list[0] ? t.bands_list[0].frequencies.length : "—";
+        const pw = t ? t.powerlevels_list.length : "—";
+        const photo = e.photo
+            ? `<img class="thumb" src="" alt="${e.name}" data-photopath="${e.photo}">`
+            : '<span class="ghost">нет</span>';
+        html += `<tr><td>${escapeHtml(e.name)}</td><td>${bands}</td><td>${chans}</td><td>${pw}</td><td>${photo}</td></tr>`;
+    }
+    html += "</table>";
+    wrap.innerHTML = html;
+    // превью фото — только при подключённой папке
+    if (dirHandle) {
+        for (const img of wrap.querySelectorAll("img[data-photopath]")) {
+            loadEntryPhoto(img);
+        }
+    }
+}
+
+async function loadEntryPhoto(img) {
+    try {
+        const photosDir = await dirHandle.getDirectoryHandle("photos");
+        const name = img.dataset.photopath.split("/").pop();
+        const fh = await photosDir.getFileHandle(name);
+        const file = await fh.getFile();
+        img.src = URL.createObjectURL(file);
+    } catch (e) { /* фото нет — оставляем пустым */ }
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+}
+
+// ---------- Добавление записи ----------
+
+// Полоса и канал в записи всегда фиксированы, независимо от вставленного текста:
+// строки "set vtx_band = ..." и "set vtx_channel = ..." игнорируются парсером.
+const FIXED_VTX_BAND = 1;
+const FIXED_VTX_CHANNEL = 1;
+
+async function addToCatalog() {
+    const name = document.getElementById("nameInput").value.trim();
+    if (!name) {
+        setStatus("Укажите название передатчика.", "err");
+        return;
+    }
+    let table;
+    try {
+        table = parseVtxTableText(document.getElementById("tableInput").value);
+    } catch (e) {
+        setStatus("Ошибка разбора таблицы: " + e.message, "err");
+        return;
+    }
+    table.description = name;
+
+    // Замена по названию (без учёта регистра) либо новая запись
+    const norm = name.toLowerCase();
+    const existingIdx = entries.findIndex(e => String(e.name).trim().toLowerCase() === norm);
+    let id;
+    if (existingIdx >= 0) {
+        id = entries[existingIdx].id;
+        if (!id) {
+            setStatus("У существующей записи нет id — исправьте catalog.json вручную.", "err");
+            return;
+        }
+    } else {
+        id = slugify(name);
+        if (entries.some(e => e.id === id)) {
+            setStatus(`Id "${id}" уже занят другой записью — измените название.`, "err");
+            return;
+        }
+    }
+
+    let photoPath = existingIdx >= 0 ? (entries[existingIdx].photo ?? null) : null;
+
+    // Запись: таблица + фиксированные полоса/канал 1/1
+    const entry = {
+        id,
+        name,
+        photo: photoPath,
+        vtx_band: FIXED_VTX_BAND,
+        vtx_channel: FIXED_VTX_CHANNEL,
+        table,
+    };
+
+    if (fsApiAvailable && dirHandle) {
+        try {
+            // Фото
+            if (photoFile) {
+                const photosDir = await dirHandle.getDirectoryHandle("photos", { create: true });
+                const ext = extOf(photoFile.name);
+                const fh = await photosDir.getFileHandle(`${id}.${ext}`, { create: true });
+                const w = await fh.createWritable();
+                await w.write(photoFile);
+                await w.close();
+                entry.photo = `photos/${id}.${ext}`;
+            }
+            // catalog.json
+            if (existingIdx >= 0) entries[existingIdx] = entry;
+            else entries.push(entry);
+
+            const catFh = await dirHandle.getFileHandle("catalog.json", { create: true });
+            const cw = await catFh.createWritable();
+            await cw.write(JSON.stringify({ entries }, null, 4));
+            await cw.close();
+
+            setStatus(
+                (existingIdx >= 0 ? "Запись заменена: " : "Запись добавлена: ") + name +
+                `\nПолоса/канал: ${FIXED_VTX_BAND}/${FIXED_VTX_CHANNEL} (фиксировано)` +
+                "\nНе забудьте закоммитить vtxCatalog/catalog.json" + (photoFile ? ` и photos/${id}.${extOf(photoFile.name)}` : ""),
+                "ok",
+            );
+            renderEntries();
+        } catch (e) {
+            setStatus("Не удалось записать файлы: " + e.message, "err");
+        }
+    } else {
+        // Резервный вариант без доступа к диску: отдаём файлы на скачивание
+        if (photoFile) entry.photo = `photos/${id}.${extOf(photoFile.name)}`;
+        if (existingIdx >= 0) entries[existingIdx] = entry;
+        else entries.push(entry);
+
+        const blob = new Blob([JSON.stringify({ entries }, null, 4)], { type: "application/json" });
+        downloadBlob(blob, "catalog.json");
+        if (photoFile) downloadBlob(photoFile, `${id}.${extOf(photoFile.name)}`);
+        setStatus("Скачаны файлы для ручной укладки в vtxCatalog/. Замените catalog.json и положите фото в photos/.", "ok");
+        renderEntries();
+    }
+}
+
+function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ---------- Превью разбора ----------
+
+function updateParsePreview() {
+    const el = document.getElementById("parsePreview");
+    const text = document.getElementById("tableInput").value;
+    if (!text.trim()) {
+        el.textContent = "";
+        return;
+    }
+    try {
+        const t = parseVtxTableText(text);
+        const bands = t.vtx_table.bands_list.filter(b => b.frequencies.length > 0).length;
+        el.textContent = `Разобрано: полос ${t.vtx_table.bands_list.length} (с частотами: ${bands}), уровней мощности ${t.vtx_table.powerlevels_list.length}. Полоса/канал записи: 1/1 (фиксировано)`;
+        el.style.color = "";
+    } catch (e) {
+        el.textContent = "Ошибка: " + e.message;
+        el.style.color = "var(--err)";
+    }
+}
+
+// ---------- Фото ----------
+
+function onPhotoChange() {
+    const input = document.getElementById("photoInput");
+    const preview = document.getElementById("photoPreview");
+    const clearBtn = document.getElementById("btnClearPhoto");
+    photoFile = input.files && input.files[0] ? input.files[0] : null;
+    if (photoFile) {
+        preview.src = URL.createObjectURL(photoFile);
+        preview.hidden = false;
+        clearBtn.hidden = false;
+    } else {
+        preview.hidden = true;
+        clearBtn.hidden = true;
+    }
+}
+
+// ---------- Инициализация ----------
+
+document.getElementById("btnPickDir").addEventListener("click", pickDirectory);
+document.getElementById("btnAdd").addEventListener("click", addToCatalog);
+document.getElementById("tableInput").addEventListener("input", updateParsePreview);
+document.getElementById("photoInput").addEventListener("change", onPhotoChange);
+document.getElementById("btnClearPhoto").addEventListener("click", () => {
+    document.getElementById("photoInput").value = "";
+    onPhotoChange();
+});
+
+if (!fsApiAvailable) {
+    document.getElementById("btnDownloadFallback").hidden = false;
+    document.getElementById("btnDownloadFallback").addEventListener("click", addToCatalog);
+    document.getElementById("btnAdd").disabled = false;
+}
+</script>
+
+</body>
+</html>

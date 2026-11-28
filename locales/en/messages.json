@@ -640,6 +640,21 @@
     "tabVtx": {
         "message": "Video Transmitter"
     },
+      "vtxCatalog": {
+    "message": "Catalog"
+    },
+    "vtxCatalogSelectModel": {
+        "message": "Model"
+    },
+    "vtxCatalogApply": {
+        "message": "Accept"
+    },
+    "vtxCatalogApplyConfirm": {
+        "message": "The table has been modified and not saved. Overwrite it with the table from the catalog?"
+    },
+    "vtxCatalogHelp": {
+        "message": "Selecting a model populates the VTX table and sets band 1, channel 1."
+    },
     "tabPower": {
         "message": "Power & Battery"
     },

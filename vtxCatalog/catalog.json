@@ -1,0 +1,593 @@
+{
+    "entries": [
+        {
+            "id": "rush-max-solo-2-5w",
+            "name": "Rush Max Solo 2.5W",
+            "photo": "photos/rush-max-solo-2-5w.jpg",
+            "vtx_band": 1,
+            "vtx_channel": 1,
+            "table": {
+                "description": "Rush Max Solo 2.5W",
+                "version": "1.0",
+                "vtx_table": {
+                    "bands_list": [
+                        {
+                            "name": "BAND_A",
+                            "letter": "A",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5865,
+                                5845,
+                                5825,
+                                5805,
+                                5785,
+                                5765,
+                                5745,
+                                5725
+                            ]
+                        },
+                        {
+                            "name": "BAND_B",
+                            "letter": "B",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5733,
+                                5752,
+                                5771,
+                                5790,
+                                5809,
+                                5828,
+                                5847,
+                                5866
+                            ]
+                        },
+                        {
+                            "name": "BAND_E",
+                            "letter": "E",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5705,
+                                5685,
+                                5665,
+                                5645,
+                                5885,
+                                5905,
+                                5925,
+                                5945
+                            ]
+                        },
+                        {
+                            "name": "AIRWAVE",
+                            "letter": "F",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5740,
+                                5760,
+                                5780,
+                                5800,
+                                5820,
+                                5840,
+                                5860,
+                                5880
+                            ]
+                        },
+                        {
+                            "name": "RACEBAND",
+                            "letter": "R",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5658,
+                                5695,
+                                5732,
+                                5769,
+                                5806,
+                                5843,
+                                5880,
+                                5917
+                            ]
+                        },
+                        {
+                            "name": "LOWRACE",
+                            "letter": "L",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5362,
+                                5399,
+                                5436,
+                                5473,
+                                5510,
+                                5547,
+                                5584,
+                                5621
+                            ]
+                        }
+                    ],
+                    "powerlevels_list": [
+                        {
+                            "value": 14,
+                            "label": "25"
+                        },
+                        {
+                            "value": 27,
+                            "label": "500"
+                        },
+                        {
+                            "value": 30,
+                            "label": "1"
+                        },
+                        {
+                            "value": 34,
+                            "label": "2.5"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "rush-tank-solo-1-6w",
+            "name": "Rush Tank Solo 1.6W",
+            "photo": "photos/rush-tank-solo-1-6w.jpg",
+            "vtx_band": 1,
+            "vtx_channel": 1,
+            "table": {
+                "description": "Rush Tank Solo 1.6W",
+                "version": "1.0",
+                "vtx_table": {
+                    "bands_list": [
+                        {
+                            "name": "BAND_A",
+                            "letter": "A",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5865,
+                                5845,
+                                5825,
+                                5805,
+                                5785,
+                                5765,
+                                5745,
+                                5725
+                            ]
+                        },
+                        {
+                            "name": "BAND_B",
+                            "letter": "B",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5733,
+                                5752,
+                                5771,
+                                5790,
+                                5809,
+                                5828,
+                                5847,
+                                5866
+                            ]
+                        },
+                        {
+                            "name": "BAND_E",
+                            "letter": "E",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5705,
+                                5685,
+                                5665,
+                                5645,
+                                5885,
+                                5905,
+                                5925,
+                                5945
+                            ]
+                        },
+                        {
+                            "name": "AIRWAVE",
+                            "letter": "F",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5740,
+                                5760,
+                                5780,
+                                5800,
+                                5820,
+                                5840,
+                                5860,
+                                5880
+                            ]
+                        },
+                        {
+                            "name": "RACEBAND",
+                            "letter": "R",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5658,
+                                5695,
+                                5732,
+                                5769,
+                                5806,
+                                5843,
+                                5880,
+                                5917
+                            ]
+                        },
+                        {
+                            "name": "LOWRACE",
+                            "letter": "L",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5362,
+                                5399,
+                                5436,
+                                5473,
+                                5510,
+                                5547,
+                                5584,
+                                5621
+                            ]
+                        }
+                    ],
+                    "powerlevels_list": [
+                        {
+                            "value": 14,
+                            "label": "25"
+                        },
+                        {
+                            "value": 26,
+                            "label": "400"
+                        },
+                        {
+                            "value": 29,
+                            "label": "800"
+                        },
+                        {
+                            "value": 32,
+                            "label": "MAX"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "foxeer-reaper-extreme-3w-v2-80ch",
+            "name": "Foxeer Reaper Extreme 3W v2 80Ch",
+            "photo": "photos/foxeer-reaper-extreme-3w-v2-80ch.jpg",
+            "vtx_band": 1,
+            "vtx_channel": 1,
+            "table": {
+                "description": "Foxeer Reaper Extreme 3W v2 80Ch",
+                "version": "1.0",
+                "vtx_table": {
+                    "bands_list": [
+                        {
+                            "name": "BAND_A",
+                            "letter": "A",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5865,
+                                5845,
+                                5825,
+                                5805,
+                                5785,
+                                5765,
+                                5745,
+                                5725
+                            ]
+                        },
+                        {
+                            "name": "BAND_B",
+                            "letter": "B",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5733,
+                                5752,
+                                5771,
+                                5790,
+                                5809,
+                                5828,
+                                5847,
+                                5866
+                            ]
+                        },
+                        {
+                            "name": "BAND_E",
+                            "letter": "E",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5705,
+                                5685,
+                                5665,
+                                5645,
+                                5885,
+                                5905,
+                                5925,
+                                5945
+                            ]
+                        },
+                        {
+                            "name": "BAND_F",
+                            "letter": "F",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5740,
+                                5760,
+                                5780,
+                                5800,
+                                5820,
+                                5840,
+                                5860,
+                                5880
+                            ]
+                        },
+                        {
+                            "name": "BAND_R",
+                            "letter": "R",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5658,
+                                5695,
+                                5732,
+                                5769,
+                                5806,
+                                5843,
+                                5880,
+                                5917
+                            ]
+                        },
+                        {
+                            "name": "BAND_H",
+                            "letter": "H",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5653,
+                                5693,
+                                5733,
+                                5773,
+                                5813,
+                                5853,
+                                5893,
+                                5933
+                            ]
+                        },
+                        {
+                            "name": "BAND_L",
+                            "letter": "L",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5333,
+                                5373,
+                                5413,
+                                5453,
+                                5493,
+                                5533,
+                                5573,
+                                5613
+                            ]
+                        },
+                        {
+                            "name": "BAND_X",
+                            "letter": "X",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                4990,
+                                5020,
+                                5050,
+                                5080,
+                                5110,
+                                5140,
+                                5170,
+                                5200
+                            ]
+                        }
+                    ],
+                    "powerlevels_list": [
+                        {
+                            "value": 25,
+                            "label": "25"
+                        },
+                        {
+                            "value": 100,
+                            "label": "200"
+                        },
+                        {
+                            "value": 200,
+                            "label": "500"
+                        },
+                        {
+                            "value": 400,
+                            "label": "1.5"
+                        },
+                        {
+                            "value": 600,
+                            "label": "3"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "rush-max-solo-xband-4-9g-2-5w",
+            "name": "Rush Max Solo XBAND 4.9G 2.5W",
+            "photo": null,
+            "vtx_band": 1,
+            "vtx_channel": 1,
+            "table": {
+                "description": "Rush Max Solo XBAND 4.9G 2.5W",
+                "version": "1.0",
+                "vtx_table": {
+                    "bands_list": [
+                        {
+                            "name": "XBAND",
+                            "letter": "X",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                4990,
+                                5020,
+                                5050,
+                                5080,
+                                5110,
+                                5140,
+                                5170,
+                                5200
+                            ]
+                        }
+                    ],
+                    "powerlevels_list": [
+                        {
+                            "value": 25,
+                            "label": "25"
+                        },
+                        {
+                            "value": 500,
+                            "label": "500"
+                        },
+                        {
+                            "value": 1000,
+                            "label": "1W"
+                        },
+                        {
+                            "value": 2500,
+                            "label": "2W5"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "rush-max-solo-2-5w-x-band",
+            "name": "Rush Max Solo  2.5W (+ X-band)",
+            "photo": null,
+            "vtx_band": 1,
+            "vtx_channel": 1,
+            "table": {
+                "description": "Rush Max Solo  2.5W (+ X-band)",
+                "version": "1.0",
+                "vtx_table": {
+                    "bands_list": [
+                        {
+                            "name": "BAND_A",
+                            "letter": "A",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5865,
+                                5845,
+                                5825,
+                                5805,
+                                5785,
+                                5765,
+                                5745,
+                                5725
+                            ]
+                        },
+                        {
+                            "name": "BAND_B",
+                            "letter": "B",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5733,
+                                5752,
+                                5771,
+                                5790,
+                                5809,
+                                5828,
+                                5847,
+                                5866
+                            ]
+                        },
+                        {
+                            "name": "BAND_E",
+                            "letter": "E",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5705,
+                                5685,
+                                5665,
+                                5645,
+                                5885,
+                                5905,
+                                5925,
+                                5945
+                            ]
+                        },
+                        {
+                            "name": "AIRWAVE",
+                            "letter": "F",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5740,
+                                5760,
+                                5780,
+                                5800,
+                                5820,
+                                5840,
+                                5860,
+                                5880
+                            ]
+                        },
+                        {
+                            "name": "RACEBAND",
+                            "letter": "R",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5658,
+                                5695,
+                                5732,
+                                5769,
+                                5806,
+                                5843,
+                                5880,
+                                5917
+                            ]
+                        },
+                        {
+                            "name": "LOWRACE",
+                            "letter": "L",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                5362,
+                                5399,
+                                5436,
+                                5473,
+                                5510,
+                                5547,
+                                5584,
+                                5621
+                            ]
+                        },
+                        {
+                            "name": "XBAND",
+                            "letter": "X",
+                            "is_factory_band": false,
+                            "frequencies": [
+                                4990,
+                                5020,
+                                5050,
+                                5080,
+                                5110,
+                                5140,
+                                5170,
+                                5200
+                            ]
+                        }
+                    ],
+                    "powerlevels_list": [
+                        {
+                            "value": 14,
+                            "label": "25"
+                        },
+                        {
+                            "value": 27,
+                            "label": "500"
+                        },
+                        {
+                            "value": 30,
+                            "label": "1"
+                        },
+                        {
+                            "value": 34,
+                            "label": "2.5"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
