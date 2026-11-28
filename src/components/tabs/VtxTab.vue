@@ -192,9 +192,9 @@
                 <!-- VTX Catalog -->
                 <div v-show="vtxSupported" class="w-full">
                     <UiBox :title="$t('vtxCatalog')" type="neutral" class="w-full">
-                        <div class="flex flex-col gap-3">
-                            <!-- Поиск + фильтр по частотам -->
-                            <div class="flex flex-wrap items-end gap-4">
+                        <div class="flex flex-wrap items-start gap-4">
+                            <!-- Левая колонка: фильтры и кнопка друг под другом -->
+                            <div class="flex flex-col gap-3">
                                 <div class="flex flex-col gap-1">
                                     <div class="flex items-center gap-1">
                                         <span class="text-xs" v-html="$t('vtxCatalogSearch')"></span>
@@ -233,21 +233,20 @@
                                     />
                                 </div>
 
-                                <div class="flex items-end">
-                                    <UButton
-                                        :label="$t('vtxCatalogApply')"
-                                        :disabled="!selectedCatalogEntry || isSaving || importBusy"
-                                        @click="applyCatalog"
-                                    />
-                                </div>
+                                <UButton
+                                    :label="$t('vtxCatalogApply')"
+                                    :disabled="!selectedCatalogEntry || isSaving || importBusy"
+                                    class="w-fit"
+                                    @click="applyCatalog"
+                                />
                             </div>
 
-                            <!-- Превью фото -->
+                            <!-- Правая колонка: фото, компактное, не растянутое -->
                             <img
                                 v-if="selectedCatalogPhoto"
                                 :src="selectedCatalogPhoto"
                                 :alt="selectedCatalogEntry?.name"
-                                class="max-h-24 rounded-md border border-(--ui-border)"
+                                class="h-24 w-auto max-w-full rounded-md border border-(--ui-border) object-contain self-start shrink-0"
                             />
                         </div>
                     </UiBox>
