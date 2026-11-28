@@ -718,6 +718,21 @@
   "vtxCatalogHelp": {
     "message": "Выбор модели заполняет таблицу VTX и выставляет полосу 1, канал 1"
   },
+    "vtxCatalogSearch": {
+    "message": "Поиск"
+  },
+  "vtxCatalogSearchPlaceholder": {
+    "message": "Введите название передатчика"
+  },
+  "vtxCatalogRange": {
+    "message": "Частота"
+  },
+  "vtxCatalogRangeAll": {
+    "message": "Все"
+  },
+  "vtxCatalogRangeHelp": {
+    "message": "Показаны только диапазоны, которые есть в таблицах каталога"
+  },
   "tabPower": {
     "message": "Питание и Батарея"
   },

@@ -190,35 +190,65 @@
                     </div>
                 </UiBox>
                 <!-- VTX Catalog -->
-                <div v-show="vtxSupported" class="w-full max-w-full overflow-x-auto">
-                    <UiBox :title="$t('vtxCatalog')" type="neutral" class="w-fit">
-                        <div class="flex flex-wrap items-start gap-4">
-                            <div class="flex flex-col gap-1">
-                                <div class="flex items-center gap-1">
-                                    <span class="text-xs" v-html="$t('vtxCatalogSelectModel')"></span>
-                                    <HelpIcon :text="$t('vtxCatalogHelp')" />
+                <div v-show="vtxSupported" class="w-full">
+                    <UiBox :title="$t('vtxCatalog')" type="neutral" class="w-full">
+                        <div class="flex flex-col gap-3">
+                            <!-- Поиск + фильтр по частотам -->
+                            <div class="flex flex-wrap items-end gap-4">
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs" v-html="$t('vtxCatalogSearch')"></span>
+                                    </div>
+                                    <UInput
+                                        v-model="catalogSearch"
+                                        :placeholder="$t('vtxCatalogSearchPlaceholder')"
+                                        class="w-64"
+                                    />
                                 </div>
-                                <USelect
-                                    v-model="selectedCatalogId"
-                                    :items="catalogOptions"
-                                    :placeholder="$t('vtxCatalogSelectModel')"
-                                    class="w-64"
-                                />
-                            </div>  
+
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs" v-html="$t('vtxCatalogRange')"></span>
+                                        <HelpIcon :text="$t('vtxCatalogRangeHelp')" />
+                                    </div>
+                                    <USelect
+                                        v-model="catalogRangeFilter"
+                                        :items="catalogRangeOptions"
+                                        :placeholder="$t('vtxCatalogRangeAll')"
+                                        class="w-32"
+                                    />
+                                </div>
+
+                                <!-- Выбор модели -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs" v-html="$t('vtxCatalogSelectModel')"></span>
+                                        <HelpIcon :text="$t('vtxCatalogHelp')" />
+                                    </div>
+                                    <USelect
+                                        v-model="selectedCatalogId"
+                                        :items="filteredCatalogOptions"
+                                        :placeholder="$t('vtxCatalogSelectModel')"
+                                        class="w-64"
+                                    />
+                                </div>
+
+                                <div class="flex items-end">
+                                    <UButton
+                                        :label="$t('vtxCatalogApply')"
+                                        :disabled="!selectedCatalogEntry || isSaving || importBusy"
+                                        @click="applyCatalog"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Превью фото -->
                             <img
                                 v-if="selectedCatalogPhoto"
                                 :src="selectedCatalogPhoto"
                                 :alt="selectedCatalogEntry?.name"
                                 class="max-h-24 rounded-md border border-(--ui-border)"
                             />
-
-                            <div class="flex items-end">
-                                <UButton
-                                    :label="$t('vtxCatalogApply')"
-                                    :disabled="!selectedCatalogEntry || isSaving || importBusy"
-                                    @click="applyCatalog"
-                                />
-                            </div>
                         </div>
                     </UiBox>
                 </div>
@@ -491,6 +521,7 @@ import { useConnectionStore } from "@/stores/connection";
 import { recoveryRequired, rulesBusy } from "@/js/vtxRules/session";
 import { useVtxAllowChange } from "@/composables/useVtxAllowChange";
 import { useVtxCatalog } from "@/composables/useVtxCatalog";
+import type { VtxCatalogEntry } from "@/composables/useVtxCatalog";
 
 export default defineComponent({
     name: "VtxTab",
@@ -553,8 +584,50 @@ export default defineComponent({
  
         const selectedCatalogId = ref<string | null>(null);
 
-        const catalogOptions = computed(() =>
-            catalogEntries.map(e => ({ value: e.id, label: e.name })),
+        // Диапазоны частот: MHz-границы подобраны так, чтобы покрывать
+        // реальные частоты соответствующих диапазонов (5.8 — 5000..6000 и т.д.)
+        const FREQUENCY_RANGES = [
+            { id: "1.2", label: "1.2 ГГц", min: 1000, max: 1300 },
+            { id: "1.5", label: "1.5 ГГц", min: 1350, max: 1750 },
+            { id: "2.4", label: "2.4 ГГц", min: 2300, max: 2550 },
+            { id: "3.3", label: "3.3 ГГц", min: 3000, max: 3500 },
+            { id: "3.7", label: "3.7 ГГц", min: 3520, max: 4500 },
+            { id: "4.9", label: "4.9 ГГц", min: 4500, max: 5000 },
+            { id: "5.8", label: "5.8 ГГц", min: 5000, max: 6000 },
+            { id: "7.2", label: "7.2 ГГц", min: 6000, max: 8000 },
+        ];
+
+        const catalogSearch = ref("");
+        const catalogRangeFilter = ref<string | null>(null);
+
+        // Показываем только те диапазоны, частоты которых реально есть в каталоге
+        const catalogRangeOptions = computed(() => {
+            const hasFreq = (entry: VtxCatalogEntry, r: (typeof FREQUENCY_RANGES)[number]) =>
+                (entry.table?.vtx_table?.bands_list ?? []).some(band =>
+                    (band.frequencies ?? []).some(f => f > 0 && f >= r.min && f < r.max),
+                );
+            return FREQUENCY_RANGES
+                .filter(r => catalogEntries.some(e => hasFreq(e, r)))
+                .map(r => ({ value: r.id, label: r.label }));
+        });
+
+        const filteredCatalogEntries = computed(() => {
+            const query = catalogSearch.value.trim().toLowerCase();
+            const range = FREQUENCY_RANGES.find(r => r.id === catalogRangeFilter.value) ?? null;
+            return catalogEntries.filter(entry => {
+                if (query && !entry.name.toLowerCase().includes(query)) return false;
+                if (range) {
+                    const match = (entry.table?.vtx_table?.bands_list ?? []).some(band =>
+                        (band.frequencies ?? []).some(f => f > 0 && f >= range.min && f < range.max),
+                    );
+                    if (!match) return false;
+                }
+                return true;
+            });
+        });
+
+        const filteredCatalogOptions = computed(() =>
+            filteredCatalogEntries.value.map(e => ({ value: e.id, label: e.name })),
         );
 
         const selectedCatalogEntry = computed(
@@ -1018,9 +1091,13 @@ export default defineComponent({
             ruleChannelsFor,
             drainStatus,
             importVtxFile,
+
             // VTX Catalog
             selectedCatalogId,
-            catalogOptions,
+            catalogSearch,
+            catalogRangeFilter,
+            catalogRangeOptions,
+            filteredCatalogOptions,
             selectedCatalogEntry,
             selectedCatalogPhoto,
             applyCatalog,
